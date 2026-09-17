@@ -15,8 +15,11 @@
 ## Conventions
 
 - Branch names: `<type>/<issue-number>-<summary>` (e.g. `feat/42-user-auth`).
-- Record notable decisions ("why we chose X") in `MEMORY.md` — the lightweight
-  decision log between commit messages and formal ADRs.
+- Record requirement and design decisions ("why we chose X") as ADRs in
+  `docs/adr/NNNN-<slug>.md` (Context / Decision / Consequences), committed
+  and reviewed via PR. Small, issue-scoped decisions stay in the
+  `yds-gh-issue-planner` agreed-plan comment; agent auto-memory is for
+  personal working preferences only, never for project decisions.
 - Security-scan false positives: allowlist the smallest unit (exact value /
   rule id, `# nosemgrep: <rule-id>` with a reason) — never a whole file or
   directory, and never by weakening the gate.
