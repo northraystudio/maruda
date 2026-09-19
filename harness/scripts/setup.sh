@@ -22,6 +22,12 @@ Options:
   --target DIR      Target project directory (default: current directory)
   --name NAME       Project name for CLAUDE.md (default: target dir name)
   --branch NAME     Default branch (default: main)
+  --integration-branch NAME
+                    Branch that PRs target and CI gates (default: --branch).
+                    Set it when releases flow through e.g. staging.
+  --default-flow FLOW
+                    Default flow when several Issues run at once:
+                    individual | batch | stack (default: individual)
   --pm PM           Node package manager: pnpm | npm | yarn | bun (default: pnpm)
   --python-pm PM    Python package manager: uv | pip | poetry (default: uv)
   --guard-pip       Enable the "use uv, not pip install" bash guard
@@ -44,6 +50,9 @@ marks them required — pass --protect (needs gh auth + admin) or configure it
 in GitHub settings; the final checklist reports the current state.
 --pr-agent adds .github/workflows/pr-agent.yml + .pr_agent.toml (advisory AI
 review, opt-in; composes with --no-ci, not with --minimal).
+Generated workflows also run for PRs whose base is a batch (epic/**) or an
+Issue branch (feat/** fix/** refactor/**), so batched and stacked work is
+verified; push triggers stay on the default and integration branches only.
 EOF
 }
 
@@ -53,6 +62,8 @@ LANGS=""
 MINIMAL=0
 NAME=""
 BRANCH="main"
+INTEGRATION_BRANCH=""
+DEFAULT_FLOW="individual"
 PM="pnpm"
 PY_PM="uv"
 GUARD_PIP=0
@@ -74,6 +85,8 @@ while [[ $# -gt 0 ]]; do
     --minimal)    MINIMAL=1; shift ;;
     --name)       NAME="$2"; shift 2 ;;
     --branch)     BRANCH="$2"; shift 2 ;;
+    --integration-branch) INTEGRATION_BRANCH="$2"; shift 2 ;;
+    --default-flow)       DEFAULT_FLOW="$2"; shift 2 ;;
     --pm)         PM="$2"; shift 2 ;;
     --python-pm)  PY_PM="$2"; shift 2 ;;
     --guard-pip)  GUARD_PIP=1; shift ;;
@@ -102,6 +115,15 @@ if [[ "$PR_AGENT" == "1" && "$MINIMAL" == "1" ]]; then
   echo "error: --pr-agent cannot be combined with --minimal (minimal installs nothing under .github; use --langs, optionally with --no-ci)" >&2
   exit 1
 fi
+
+case "$DEFAULT_FLOW" in
+  individual|batch|stack) ;;
+  *) echo "error: unsupported --default-flow: $DEFAULT_FLOW (supported: individual, batch, stack)" >&2; exit 1 ;;
+esac
+
+# The integration branch is where PRs land and where CI gates; it defaults to the
+# default branch and differs only when releases flow through e.g. staging.
+[[ -z "$INTEGRATION_BRANCH" ]] && INTEGRATION_BRANCH="$BRANCH"
 
 TARGET="$(cd "$TARGET" && pwd)"
 [[ -z "$NAME" ]] && NAME="$(basename "$TARGET")"
@@ -330,6 +352,8 @@ else
       else
         line=${line//\{\{PROJECT_NAME\}\}/$NAME}
         line=${line//\{\{DEFAULT_BRANCH\}\}/$BRANCH}
+        line=${line//\{\{INTEGRATION_BRANCH\}\}/$INTEGRATION_BRANCH}
+        line=${line//\{\{DEFAULT_FLOW\}\}/$DEFAULT_FLOW}
         printf '%s\n' "$line"
       fi
     done <"$TEMPLATES/CLAUDE.md.template"
@@ -572,16 +596,32 @@ EOF
 
 # Shared by the CI and PR Agent workflow templates.
 CI_PATHS="" CI_JOBS="" SEMGREP_CONFIGS=""
+
+# Branch filters. PRs are verified for the integration target *and* for the bases
+# the batch / stacked flows use (epic/** and Issue branches) — otherwise batched
+# work reaches the integration PR unverified. Push triggers stay narrow: they
+# exist for bypass coverage on the branches that actually gate releases.
+PUSH_BRANCHES="      - $BRANCH"$'\n'
+[[ "$INTEGRATION_BRANCH" != "$BRANCH" ]] && PUSH_BRANCHES+="      - $INTEGRATION_BRANCH"$'\n'
+PR_BASE_BRANCHES="$PUSH_BRANCHES"
+PR_BASE_BRANCHES+="      # batch (epic) and stacked-PR bases — see .claude/rules/dev-skills-cycle.md"$'\n'
+for pr_base in 'epic/**' 'feat/**' 'fix/**' 'refactor/**'; do
+  PR_BASE_BRANCHES+="      - '$pr_base'"$'\n'
+done
+
 render_workflow() { # $1: template, $2: destination
   local line
   while IFS= read -r line; do
     case "$line" in
       "{{CI_PATHS}}")             printf '%s' "$CI_PATHS" ;;
+      "{{PR_BASE_BRANCHES}}")     printf '%s' "$PR_BASE_BRANCHES" ;;
+      "{{PUSH_BRANCHES}}")        printf '%s' "$PUSH_BRANCHES" ;;
       "{{CI_JOBS}}")              printf '%s' "$CI_JOBS" ;;
       "{{SEMGREP_LANG_CONFIGS}}") printf '%s' "$SEMGREP_CONFIGS" ;;
       "{{NODE_AUDIT_JOB}}")       if [[ -n "$NODE_AUDIT_JOB" ]]; then printf '%s\n' "$NODE_AUDIT_JOB"; fi ;;
       *)
         line=${line//\{\{DEFAULT_BRANCH\}\}/$BRANCH}
+        line=${line//\{\{INTEGRATION_BRANCH\}\}/$INTEGRATION_BRANCH}
         printf '%s\n' "$line"
         ;;
     esac
@@ -847,6 +887,7 @@ cat <<EOF
   rules:      $ST_RULES
   CLAUDE.md:  $ST_CLAUDE
   CI:         $ST_CI
+  flow:       integration branch: $INTEGRATION_BRANCH | default: $DEFAULT_FLOW
   checklist:  $ST_CHECKLIST
   protection: $ST_PROTECT
   pr-agent:   $ST_PRAGENT

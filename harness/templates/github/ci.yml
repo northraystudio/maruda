@@ -4,13 +4,16 @@ name: CI
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-    branches: [{{DEFAULT_BRANCH}}]
+    branches:
+{{PR_BASE_BRANCHES}}
     paths:
 {{CI_PATHS}}
       - '.github/workflows/ci.yml'
-  # Direct pushes to the default branch are scanned too (bypass coverage).
+  # Direct pushes to the default / integration branch are scanned too
+  # (bypass coverage). Feature and epic branches are covered via pull_request.
   push:
-    branches: [{{DEFAULT_BRANCH}}]
+    branches:
+{{PUSH_BRANCHES}}
     paths:
 {{CI_PATHS}}
       - '.github/workflows/ci.yml'

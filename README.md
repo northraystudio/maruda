@@ -18,6 +18,7 @@ graph LR
     Draft["✍️ Draft Issue<br/>yds-gh-issue-drafter"]
     Plan["🧠 Plan<br/>yds-gh-issue-planner"]
     Resolve["🛠️ Resolve + Verify<br/>yds-gh-issue-resolver"]
+    Batch["📦 Batch Run<br/>yds-gh-batch-runner"]
 
     Idea["💡 Rough idea<br/>(hand-written)"] -- "Loose 'what I want'" --> Draft
     Diagnose -- "Reports + JSON" --> Visualize
@@ -25,6 +26,9 @@ graph LR
     Register -- "GitHub Issues" --> Plan
     Draft -- "Scoped GitHub Issue" --> Plan
     Plan -- "Agreed plan comment" --> Resolve
+    Plan -- "Several Issues, one release" --> Batch
+    Batch -- "One commit per Issue" --> Resolve
+    Batch -- "One PR from epic/**" --> Done
     Resolve -- "Re-run diagnosis on the diff" --> Diagnose
     Diagnose -- "Regressions only" --> Resolve
     Resolve -- "PR + Code Changes" --> Done["✅ Verified PR"]
@@ -36,6 +40,11 @@ re-runs the diagnosis on its own diff, fixes the findings **it caused**, and re-
 3 iterations, never outside the agreed plan's impact scope. Findings that predate the change
 are handed to `yds-report-to-issues` instead of being fixed in the same PR.
 
+When several Issues ship together, `yds-gh-batch-runner` collects them under an Epic Issue,
+lands one commit per Issue on a shared `epic/**` branch, verifies that branch as a whole
+against the integration branch, and opens a single PR. Issues that ship separately stay on
+the individual path, and a dependency chain that ships separately uses stacked PRs.
+
 | Step          | Skill                                                          | What happens                                                                                                                                                                                                                                  |
 | ------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Diagnose**  | `yds-software-evaluation`, `yds-vulnerability-scan`, `yds-data-validation` | Evaluate code quality, security, and data correctness. The first two produce reports + JSON summaries; `yds-data-validation` is session-output only by design                                                                                     |
@@ -44,6 +53,7 @@ are handed to `yds-report-to-issues` instead of being fixed in the same PR.
 | **Draft**     | `yds-gh-issue-drafter`                                             | Turn a rough, hand-written intent into a scoped Issue (Done / Out of scope / Design constraints) — the human-authored entry point into the cycle                                                                                              |
 | **Plan**      | `yds-gh-issue-planner`                                             | Investigate the issue, propose a structured response plan, post the agreed plan as an issue comment                                                                                                                                           |
 | **Resolve**   | `yds-gh-issue-resolver`                                            | Pick up the agreed plan comment, create a branch, implement, run tests, open a PR                                                                                                                                                             |
+| **Batch run** | `yds-gh-batch-runner`                                              | Only when several Issues ship together: collect them as sub-issues of an Epic, implement in dependency order on `epic/<n>-<slug>`, verify the branch as a whole, open one PR into the integration branch                                        |
 | **Verify**    | `yds-gh-issue-resolver` (Step 8)                                   | Re-run the triggered diagnoses on the diff, attribute each finding, **autonomously fix the regressions this change caused**, and hand pre-existing findings to `yds-report-to-issues`. Bounded to 3 iterations and the agreed plan's impact scope |
 
 > **Note:** `yds-spec-doc` is independent of this cycle — use it anytime to generate or sync living documentation. `yds-setup` is also independent: it installs the harness that makes this cycle the default path in a new project.
@@ -60,6 +70,7 @@ are handed to `yds-report-to-issues` instead of being fixed in the same PR.
 | [yds-gh-issue-drafter](skills/yds-gh-issue-drafter/SKILL.md)       | Turn a rough, hand-written intent into a well-scoped GitHub Issue. Proposes the missing Done definition, Out of scope, and Design constraints for user approval, then files the Issue with a scoped-issue marker that `yds-gh-issue-planner` recognizes.                                                |
 | [yds-gh-issue-planner](skills/yds-gh-issue-planner/SKILL.md)       | Fetch a GitHub Issue by ID, investigate related code, propose a structured response plan (approach, impact scope, implementation steps), and post the agreed plan as an issue comment. Implementation is out of scope.                                                                              |
 | [yds-gh-issue-resolver](skills/yds-gh-issue-resolver/SKILL.md)     | Implement and verify a fix for a GitHub Issue whose response plan has already been posted as a comment by `yds-gh-issue-planner`. Creates a branch, applies the agreed plan, runs tests, opens a Pull Request, then re-runs the diagnosis and autonomously fixes the regressions its own change caused. |
+| [yds-gh-batch-runner](skills/yds-gh-batch-runner/SKILL.md)         | Run several planned Issues as one release: an Epic Issue holds the members as sub-issues, each lands as one commit on a shared `epic/**` branch in dependency order, the branch is verified as a whole against the integration branch, and a single Pull Request opens into it. |
 | [yds-progress-dashboard](skills/yds-progress-dashboard/SKILL.md)   | Generate an interactive HTML dashboard that visualizes quality scores and security findings over time from JSON summaries.                                                                                                                                                                          |
 | [yds-setup](skills/yds-setup/SKILL.md)       | Install the full harness (CLAUDE.md + hooks + settings + rules) into the current project through a short interview — languages and commands are asked, never auto-detected.                                                                                                                         |
 
@@ -242,6 +253,9 @@ Once installed, describe your task naturally and the relevant skill is applied a
 "Implement issue #42" / "Issue #42を実装して"
 → Uses yds-gh-issue-resolver skill (requires an agreed plan comment from yds-gh-issue-planner)
 
+"Issue 1,2,3をまとめて対応して" / "Ship these issues as one release"
+→ Uses yds-gh-batch-runner skill (requires an agreed plan comment on every member Issue)
+
 "Generate a progress dashboard" / "Show improvement trends"
 → Uses yds-progress-dashboard skill
 
@@ -260,6 +274,7 @@ You can also invoke skills directly:
 /yds-gh-issue-drafter
 /yds-gh-issue-planner
 /yds-gh-issue-resolver
+/yds-gh-batch-runner
 /yds-progress-dashboard
 /yds-setup
 ```
@@ -292,6 +307,8 @@ You can also invoke skills directly:
 - `yds-gh-issue-drafter` — Takes a loose, hand-written "what I want" and drafts the structure it almost always lacks (machine-checkable 完了条件, 触らない範囲, optional 設計方針). After author approval, files the Issue tagged with `<!-- gh-issue-drafter:scoped-issue -->` so `yds-gh-issue-planner` treats the scope as binding. The human-authored counterpart to `yds-report-to-issues`.
 - `yds-gh-issue-planner` — Fetches a GitHub Issue via `gh` CLI, classifies it (bug/feature/refactor/docs), searches related code, and presents a structured plan (approach, impact scope, steps, open questions). Posts the agreed plan as an issue comment tagged with `<!-- gh-issue-planner:agreed-plan -->`.
 - `yds-gh-issue-resolver` — Picks up the agreed plan comment posted by `yds-gh-issue-planner`, creates a feature branch, applies the changes, runs tests, opens a Pull Request, and verifies the fix against the original issue. Verification is autonomous: it re-runs whichever diagnoses the diff triggers, attributes each finding against the base branch, and fixes the `regression`-class findings itself — bounded to 3 iterations and to the agreed plan's impact scope, returning to `yds-gh-issue-planner` when it hits either wall. `pre-existing` findings are never fixed in the same PR; they are offered to `yds-report-to-issues`.
+
+- `yds-gh-batch-runner` — Runs several planned Issues as one release. Membership is an Epic Issue holding the members as sub-issues (`gh api .../sub_issues`), and ordering comes from GitHub's `blocked_by` dependencies, both re-read at the start of every run. Each Issue lands as a single commit on `epic/<n>-<slug>` under the usual per-Issue limits; no child PRs are created. The branch is then verified as a whole against the integration branch — what newly breaks there is the batch's regression and is fixed, what already failed is handed to `yds-report-to-issues` — and a single Pull Request opens into the integration branch, where CI and review actually gate.
 
 ### Setup
 

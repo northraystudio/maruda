@@ -9,10 +9,13 @@ name: Security Scan
 
 on:
   pull_request:
-    branches: [{{DEFAULT_BRANCH}}]
-  # Direct pushes to the default branch are scanned too (bypass coverage).
+    branches:
+{{PR_BASE_BRANCHES}}
+  # Direct pushes to the default / integration branch are scanned too
+  # (bypass coverage). Feature and epic branches are covered via pull_request.
   push:
-    branches: [{{DEFAULT_BRANCH}}]
+    branches:
+{{PUSH_BRANCHES}}
   workflow_dispatch:
 
 jobs:

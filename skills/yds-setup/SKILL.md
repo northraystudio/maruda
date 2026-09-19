@@ -75,6 +75,18 @@ aborts the turn with "Invalid tool parameters":
 - **Q4. Default branch** — options: `main` (Recommended) / `master`
   (anything else via Other).
 
+### Phase 1b — Flow (second call; Phase 1 is already at the 4-question limit)
+
+- **Q5. Integration branch** — the branch PRs target and CI gates. Options:
+  "Same as the default branch: <branch> (Recommended)" / `staging`
+  (anything else via Other). It is recorded in CLAUDE.md, not detected.
+- **Q6. Default flow when several Issues run at once** — options:
+  `individual` (Recommended — one PR per Issue) / `batch` (collect them on
+  `epic/<n>-<slug>`, verify as a whole, one PR) / `stack` (each PR targets
+  the branch of the Issue it depends on). This is only the default: whether
+  Issues are batched is decided by asking "do these ship together?", never
+  by the dependency graph.
+
 ### Phase 2 — Per-language commands
 
 Ask for the primary language in full; for additional languages a quick
@@ -135,12 +147,16 @@ modified. Wait for explicit approval. On approval, apply as follows.
 
      ```bash
      curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
-       | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> [--guard-pip] [--with-skills] [--pr-agent]
+       | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> \
+         [--integration-branch <branch>] [--default-flow <individual|batch|stack>] \
+         [--guard-pip] [--with-skills] [--pr-agent]
      ```
 
-   Map EVERY Phase 3 answer to a flag — the applied changes must equal the
+   Map EVERY Phase 1b / Phase 3 answer to a flag — the applied changes must equal the
    approved summary exactly: languages (primary first) → `--langs`,
    Node PM → `--pm`, Python PM → `--python-pm`, pip guard → `--guard-pip`,
+   integration branch → `--integration-branch` (omit when it equals the
+   default branch), default flow → `--default-flow`,
    skills ON → `--with-skills`, CI OFF → `--no-ci`, format hook OFF →
    `--no-format-hook`, bash guard OFF → `--no-bash-guard`, guidance hooks
    OFF → `--no-guidance-hooks`, rules OFF → `--no-rules`, .env guard OFF →
@@ -183,6 +199,7 @@ Print a final checklist:
   settings:   OK / MERGED / needs manual merge
   rules:      OK / skipped
   CI:         OK / skipped
+  flow:       integration branch: <branch> | default: <individual|batch|stack>
   protection: configured / NOT CONFIGURED / applied
   pr-agent:   disabled / written (OPENAI_KEY secret required)
   next:       restart Claude Code to load hooks, then try /yds-software-evaluation .
