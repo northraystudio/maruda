@@ -245,6 +245,24 @@ FAKE_GH_PAYLOAD="$PAP/payload.json" PATH="$PAP/bin:$PATH" \
 check "pr-agent: --protect payload captured"   "[[ -s '$PAP/payload.json' ]] && grep -q 'protection: applied' '$WORK/pragent-protect.out'"
 check "pr-agent: never a required check"       "! grep -q 'PR Agent' '$PAP/payload.json' && grep -q 'SAST (Semgrep)' '$PAP/payload.json'"
 
+# ── Supply chain: every action is SHA-pinned ──
+# A tag can be repointed at any commit, so a tag reference does not pin
+# anything. Run last, so every target generated above is covered.
+unpinned_uses() { # $1: a .github/workflows directory → prints the unpinned count
+  grep -rhE '\buses: ' "$1" 2>/dev/null | grep -cvE 'uses: [^@[:space:]]+@[0-9a-f]{40} # v[0-9]' || true
+}
+for t in full jsonly pyonly bunts flow; do
+  wf="$WORK/$t/.github/workflows"
+  [[ -d "$wf" ]] || continue
+  check "pin: $t workflows are SHA-pinned" "[[ \$(unpinned_uses '$wf') -eq 0 ]]"
+done
+check "pin: pr-agent target is SHA-pinned"  "[[ \$(unpinned_uses '$PA/.github/workflows') -eq 0 ]]"
+# Guard the guard: unpinned_uses must actually count an unpinned line,
+# otherwise the checks above would pass on an empty or broken match.
+mkdir -p "$WORK/pinprobe"
+printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n' >"$WORK/pinprobe/probe.yml"
+check "pin: detector counts a mutable tag" "[[ \$(unpinned_uses '$WORK/pinprobe') -eq 1 ]]"
+
 # ── 9. Arg validation ────────────────────────
 check "args: no flags fails"       "! bash '$SETUP' --target '$WORK' >/dev/null 2>&1"
 check "args: bad lang fails"       "! bash '$SETUP' --target '$WORK' --langs rust >/dev/null 2>&1"
