@@ -58,11 +58,14 @@ gh api repos/{owner}/{repo}/issues/<id>/sub_issues --jq '.[].number'
 ```
 
 If the investigation uncovers a dependency that is not recorded yet, record it before
-planning around it (`<blocker-id>` is the blocking Issue's **id**, not its number —
-read it with `gh issue view <blocker-number> --json id`):
+planning around it. Reading takes the Issue **number**; writing takes the REST **integer
+id**, which is not the same thing as the `I_kwDO…` node id that `gh issue view` reports
+under `id` — the endpoint rejects that with HTTP 422. Use `-F` rather than `-f` so the
+value stays an integer instead of becoming a string:
 
 ```bash
-gh api -X POST repos/{owner}/{repo}/issues/<id>/dependencies/blocked_by -f issue_id=<blocker-id>
+blocker_id=$(gh api repos/{owner}/{repo}/issues/<blocker-number> --jq .id)
+gh api -X POST repos/{owner}/{repo}/issues/<id>/dependencies/blocked_by -F issue_id="$blocker_id"
 ```
 
 A plan that silently assumes an unrecorded dependency is a plan the batch and stacked

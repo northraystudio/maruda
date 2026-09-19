@@ -20,7 +20,10 @@ gh api repos/{owner}/{repo}/issues/{n}/sub_issues
 gh api repos/{owner}/{repo}/issues/{n}/dependencies/blocked_by
 ```
 
-Writes take the issue's **id**, not its number.
+Reads take the Issue **number**. Writes take the Issue's REST **integer id** — read it
+with `gh api repos/{owner}/{repo}/issues/{n} --jq .id`, and pass it with `-F` so it stays
+an integer. The `I_kwDO…` value that `gh issue view` reports under `id` is the GraphQL
+node id; these endpoints reject it with HTTP 422.
 
 Separately, the batch flow had to decide whether each Issue gets its own PR into
 the integration branch, or whether the integration branch simply collects one

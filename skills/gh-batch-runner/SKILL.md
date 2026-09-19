@@ -49,11 +49,14 @@ EOF
 )"
 ```
 
-Then attach each member (the API takes the issue's **id**, not its number):
+Then attach each member. Reading takes the Issue **number**; writing takes the REST
+**integer id**, which is not the same thing as the `I_kwDO…` node id that
+`gh issue view` reports under `id` — the endpoint rejects that with HTTP 422. Use `-F`
+rather than `-f` so the value stays an integer instead of becoming a string:
 
 ```bash
-sub_id=$(gh issue view <member-number> --json id --jq .id)
-gh api -X POST repos/{owner}/{repo}/issues/<epic-number>/sub_issues -f sub_issue_id="$sub_id"
+sub_id=$(gh api repos/{owner}/{repo}/issues/<member-number> --jq .id)
+gh api -X POST repos/{owner}/{repo}/issues/<epic-number>/sub_issues -F sub_issue_id="$sub_id"
 ```
 
 ### Step 2: Re-read dependencies and order the work
