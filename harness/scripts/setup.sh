@@ -374,7 +374,7 @@ go_ci_job() {
     name: Go (build, test, lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Check go.mod exists
         # Before setup-go, which itself reads go.mod (go-version-file).
         run: |
@@ -382,7 +382,7 @@ go_ci_job() {
             echo "::error title=Missing go.mod::Run 'go mod init <module>' and commit go.mod before the first Go PR."
             exit 1
           fi
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         id: go
         with:
           go-version-file: go.mod
@@ -429,7 +429,7 @@ node_ci_job() {
     name: Node (lint, typecheck, test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # Preflight before install: strict by design (shift-left), but fail with
       # an actionable message instead of a raw "missing script" error. The
       # manifest is parsed directly — package-manager stderr is version-fragile.
@@ -464,10 +464,10 @@ EOF
   case "$PM" in
     pnpm)
       cat <<'EOF'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
           version: 10
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: pnpm
@@ -477,7 +477,7 @@ EOF
       ;;
     npm)
       cat <<'EOF'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: npm
@@ -487,7 +487,7 @@ EOF
       ;;
     yarn)
       cat <<'EOF'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
           cache: yarn
@@ -497,7 +497,7 @@ EOF
       ;;
     bun)
       cat <<'EOF'
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - name: Install dependencies
         run: bun install --frozen-lockfile
 EOF
@@ -515,11 +515,11 @@ python_ci_job() {
   echo "    name: Python (lint, test)"
   echo "    runs-on: ubuntu-latest"
   echo "    steps:"
-  echo "      - uses: actions/checkout@v4"
+  echo "      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0"
   case "$PY_PM" in
     uv)
       cat <<'EOF'
-      - uses: astral-sh/setup-uv@v5
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       - name: Install dependencies
         run: uv sync
       - name: Lint (ruff)
@@ -541,7 +541,7 @@ EOF
       ;;
     pip)
       cat <<'EOF'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -567,7 +567,7 @@ EOF
       ;;
     poetry)
       cat <<'EOF'
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.12'
       - name: Install dependencies
@@ -668,12 +668,12 @@ else
     NODE_AUDIT_JOB+="    name: Node Dependency Audit"$'\n'
     NODE_AUDIT_JOB+="    runs-on: ubuntu-latest"$'\n'
     NODE_AUDIT_JOB+="    steps:"$'\n'
-    NODE_AUDIT_JOB+="      - uses: actions/checkout@v4"$'\n'
+    NODE_AUDIT_JOB+="      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0"$'\n'
     if [[ "$PM" == "pnpm" ]]; then
-      NODE_AUDIT_JOB+="      - uses: pnpm/action-setup@v4"$'\n'
+      NODE_AUDIT_JOB+="      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0"$'\n'
       NODE_AUDIT_JOB+="        with:"$'\n'
       NODE_AUDIT_JOB+="          version: 10"$'\n'
-      NODE_AUDIT_JOB+="      - uses: actions/setup-node@v4"$'\n'
+      NODE_AUDIT_JOB+="      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0"$'\n'
       NODE_AUDIT_JOB+="        with:"$'\n'
       NODE_AUDIT_JOB+="          node-version: '22'"$'\n'
       NODE_AUDIT_JOB+="          cache: pnpm"$'\n'
@@ -683,7 +683,7 @@ else
       NODE_AUDIT_JOB+="        # devDependencies do not ship to production"$'\n'
       NODE_AUDIT_JOB+="        run: pnpm audit --prod --audit-level=high"
     else
-      NODE_AUDIT_JOB+="      - uses: actions/setup-node@v4"$'\n'
+      NODE_AUDIT_JOB+="      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0"$'\n'
       NODE_AUDIT_JOB+="        with:"$'\n'
       NODE_AUDIT_JOB+="          node-version: '22'"$'\n'
       NODE_AUDIT_JOB+="          cache: npm"$'\n'
