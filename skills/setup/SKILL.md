@@ -136,7 +136,7 @@ confirm of the defaults is enough. Propose these defaults:
     does **not** auto-install from settings: `--plugin` records the marketplace
     and marks the plugin enabled, and each person still runs
     `/plugin install maruda@northraystudio` once.
-  - **npx** — `npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`.
+  - **npx** — `npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy`.
     Works with agents other than Claude Code; commands have no namespace
     (`/spec-doc`), so they can collide with other skill collections. Maps to
     `--with-skills`.
@@ -173,7 +173,7 @@ modified. Wait for explicit approval. On approval, apply as follows.
      `main` so the installer matches a known version (network required):
 
      ```bash
-     curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+     curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh \
        | bash -s -- --langs <langs> --pm <pm> --python-pm <py-pm> --branch <branch> --name <name> \
          [--integration-branch <branch>] [--default-flow <individual|batch|stack>] \
          [--guard-pip] [--with-skills] [--pr-agent]

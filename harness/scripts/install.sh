@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # maruda harness — one-liner entry point.
 #
-#   curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+#   curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh \
 #     | bash -s -- --langs go,typescript --pm pnpm
 #
 # Prefer inspecting before running:
@@ -11,7 +11,7 @@
 # against the CURRENT directory. No sudo; writes only ./CLAUDE.md and ./.claude/.
 set -euo pipefail
 
-REPO="${DEV_SKILLS_REPO:-https://github.com/ymd38/dev-skills.git}"
+REPO="${DEV_SKILLS_REPO:-https://github.com/northraystudio/maruda.git}"
 REF="${DEV_SKILLS_REF:-main}"
 TARGET="${DEV_SKILLS_TARGET:-$PWD}"
 

@@ -1,6 +1,19 @@
-# Agent Skills
+# maruda
 
-A collection of Claude Code agent skills plus a full **project harness** for AI-assisted development — code quality reviews, security audits, living documentation, GitHub-issue-driven implementation with autonomous verification, and day-one CI/security gates (gitleaks, Semgrep, Trivy). Built on **harness engineering** and **loop engineering** principles: the environment enforces quality mechanically (hooks, strict CI, branch protection) while a bounded improvement loop (diagnose → issue → plan → resolve ⇄ verify) does the work.
+**AI with a harness.**
+
+日本語版は [README.ja.md](README.ja.md) にあります。
+
+maruda is a collection of Claude Code agent skills plus a full **project harness** for AI-assisted development — code quality reviews, security audits, living documentation, GitHub-issue-driven implementation with autonomous verification, and day-one CI/security gates (gitleaks, Semgrep, Trivy). Built on **harness engineering** and **loop engineering** principles: the environment enforces quality mechanically (hooks, strict CI, branch protection) while a bounded improvement loop (diagnose → issue → plan → resolve ⇄ verify) does the work.
+
+The name is *marutto* (まるっと, "the whole lot") plus **DA** — Dev with AI: the
+skills, the rules, the CI and the security gates arrive together, not one at a
+time.
+
+> **Renamed from `dev-skills`.** This repository moved from `ymd38/dev-skills` to
+> `northraystudio/maruda` on 2026-09-20. GitHub redirects the old URLs, so
+> one-liners and clones that still point at the old address keep working and
+> projects already installed need no action. New links should use the new address.
 
 ## What are Skills?
 
@@ -86,7 +99,7 @@ Pick the row that matches your situation — each command is complete as written
 | **New project, languages not decided yet**              | Minimal one-liner below (rails only) → decide languages later with `/maruda:setup` in Claude Code                                                                        |
 | **Existing project**                                    | Full one-liner — existing `CLAUDE.md` / settings / hooks are never overwritten; settings hooks are merged. Then `/maruda:setup` to merge the cycle section into your CLAUDE.md |
 | **Claude Code user, skills only**                       | `/plugin marketplace add northraystudio/maruda` then `/plugin install maruda@northraystudio` — commands arrive namespaced as `/maruda:<skill>` (see [Skills only](#skills-only))          |
-| **Skills only, another agent (or no plugin)**            | `npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy` (see [Skills only](#skills-only))                                                          |
+| **Skills only, another agent (or no plugin)**            | `npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy` (see [Skills only](#skills-only))                                                          |
 | **Team repo — share with teammates**                    | Install with `--copy` (default in the commands here), then commit `.claude/`, `CLAUDE.md`, and `.github/` — teammates get everything on clone, no install needed       |
 | **Prefer answering questions over flags**               | Install skills first, then run `/maruda:setup` in Claude Code — interview-style, writes only after you approve the summary                                                |
 | **Default branch pushed → enforce the gates**           | `curl -fsSL <install.sh URL> \| bash -s -- --langs <yours> --protect` (needs `gh` auth with **repo admin**) — checks become required and actually block merges          |
@@ -95,11 +108,11 @@ Pick the row that matches your situation — each command is complete as written
 
 ```bash
 # Full one-liner (languages are explicit, never detected)
-curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh \
   | bash -s -- --langs go,typescript --pm pnpm --with-skills
 
 # Minimal one-liner (rails only)
-curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh \
   | bash -s -- --minimal
 ```
 
@@ -162,7 +175,7 @@ Installer regression tests: `bash harness/tests/run.sh`.
 Prefer inspecting scripts before piping to bash:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh -o install.sh
+curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh -o install.sh
 less install.sh && bash install.sh --langs go
 ```
 
@@ -228,10 +241,10 @@ known and mark the plugin enabled, and each person still runs
 
 ```bash
 # All skills, non-interactive, copied into .claude/skills/
-npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
+npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 ```
 
-> Running plain `npx skills add ymd38/dev-skills` opens an interactive picker
+> Running plain `npx skills add northraystudio/maruda` opens an interactive picker
 > where **nothing is pre-selected** — press Space to select skills before Enter,
 > or use the flags above. `--copy` copies files instead of symlinking, so the
 > skills can be committed and shared with your team.
@@ -239,7 +252,7 @@ npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
 To install a single skill:
 
 ```bash
-npx skills add ymd38/dev-skills --skill spec-doc --agent claude-code -y --copy
+npx skills add northraystudio/maruda --skill spec-doc --agent claude-code -y --copy
 ```
 
 #### Option 3: Manual Copy
@@ -261,7 +274,7 @@ cp -r skills/* .claude/skills/
 Add as a submodule to keep skills up to date with upstream changes:
 
 ```bash
-git submodule add https://github.com/ymd38/dev-skills.git .claude/maruda
+git submodule add https://github.com/northraystudio/maruda.git .claude/maruda
 ```
 
 Then reference skills from `.claude/maruda/skills/`.

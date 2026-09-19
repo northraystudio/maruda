@@ -45,7 +45,7 @@ Options:
                     --with-skills.
   --plugin-ref REF  Marketplace ref to pin (branch or tag; default: main). Marketplace
                     sources do not support a commit SHA — pin a release tag.
-  --with-skills     Also run: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
+  --with-skills     Also run: npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
   --force           Overwrite existing files (default: keep existing)
   -h, --help        Show this help
 
@@ -172,7 +172,7 @@ ST_CLAUDE=""
 ST_RULES=""
 ST_CI=""
 ST_ENV=""
-ST_SKILLS="skipped (use --with-skills or: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy)"
+ST_SKILLS="skipped (use --with-skills or: npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy)"
 
 mkdir -p "$TARGET/.claude/hooks" "$TARGET/.claude/rules"
 
@@ -868,13 +868,13 @@ fi
 # ── Skills ───────────────────────────────────
 if [[ "$WITH_SKILLS" == "1" ]]; then
   if command -v npx >/dev/null 2>&1; then
-    if (cd "$TARGET" && npx --yes skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy); then
+    if (cd "$TARGET" && npx --yes skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy); then
       ST_SKILLS="installed via npx skills add"
     else
-      ST_SKILLS="FAILED — run manually: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy"
+      ST_SKILLS="FAILED — run manually: npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy"
     fi
   else
-    ST_SKILLS="SKIPPED — npx not found; run manually: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy"
+    ST_SKILLS="SKIPPED — npx not found; run manually: npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy"
   fi
 fi
 
