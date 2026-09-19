@@ -1,4 +1,4 @@
-# Semgrep ignore list (dev-skills harness).
+# Semgrep ignore list (maruda harness).
 # NOTE: creating this file replaces Semgrep's built-in default ignores,
 # so the common ones are restated below.
 #

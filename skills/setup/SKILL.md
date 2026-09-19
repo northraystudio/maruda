@@ -1,9 +1,9 @@
 ---
-name: yds-setup
-description: "Install the full dev-skills harness into the current project through a short interview: CLAUDE.md, hooks, .claude/settings.json, rules, and skill wiring. Asks — never auto-detects — the languages (Go / Python / TypeScript / JavaScript) and commands, then writes files only after an approved summary. Use when the user asks to set up / install / bootstrap dev-skills, the harness, or the continuous improvement cycle. Triggers: セットアップして, ハーネスを入れて, harnessを入れて, dev-skillsを導入して, プロジェクトを初期化して, '/yds-setup', 'set up the harness', 'install dev-skills', 'bootstrap this project'."
+name: setup
+description: "Install the full maruda harness into the current project through a short interview: CLAUDE.md, hooks, .claude/settings.json, rules, and skill wiring. Asks — never auto-detects — the languages (Go / Python / TypeScript / JavaScript) and commands, then writes files only after an approved summary. Use when the user asks to set up / install / bootstrap maruda, the harness, or the continuous improvement cycle. Triggers: セットアップして, ハーネスを入れて, harnessを入れて, marudaを導入して, プロジェクトを初期化して, '/maruda:setup', 'set up the harness', 'install maruda', 'bootstrap this project'."
 ---
 
-# dev-skills Full Harness Setup (Interview Mode)
+# maruda Full Harness Setup (Interview Mode)
 
 ## Goal
 
@@ -60,7 +60,7 @@ aborts the turn with "Invalid tool parameters":
 1. Confirm the target is a git repository (offer `git init` if not).
 2. Check existence (existence only — do not read to guess the stack) of:
    `CLAUDE.md`, `.claude/settings.json`, `.claude/hooks/`,
-   `.claude/rules/dev-skills-cycle.md`, `.claude/skills/`.
+   `.claude/rules/maruda-cycle.md`, `.claude/skills/`.
 3. Tell the user: existing files will each get an overwrite/merge/skip
    question in Phase 3.
 
@@ -112,7 +112,7 @@ confirm of the defaults is enough. Propose these defaults:
 ### Phase 3 — Harness scope
 
 - **Q-H1. Components** (multi-select, every entry recommended ON by default):
-  CLAUDE.md / skills (`npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`) /
+  CLAUDE.md /
   format hook / bash-guard hook / SessionStart + Stop guidance hooks /
   `.claude/rules/` (cycle contract + score-aligned coding principles +
   per-language rules for the chosen languages) /
@@ -128,6 +128,25 @@ confirm of the defaults is enough. Propose these defaults:
   `/review` on each push, slash commands for repository members). Needs an
   `OPENAI_KEY` repository secret and API billing; it is advice, never a
   required status check.
+- **Q-H1c. How the skills get installed** (single choice, propose *plugin*):
+  - **plugin** — the Claude Code plugin. Commands are namespaced
+    (`/maruda:spec-doc`), and the skills always match the `setup.sh` that
+    installed the harness. Maps to `--plugin` (add `--plugin-ref <tag>` when the
+    user wants a pinned release rather than `main`). Say plainly that Claude Code
+    does **not** auto-install from settings: `--plugin` records the marketplace
+    and marks the plugin enabled, and each person still runs
+    `/plugin install maruda@northraystudio` once.
+  - **npx** — `npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy`.
+    Works with agents other than Claude Code; commands have no namespace
+    (`/spec-doc`), so they can collide with other skill collections. Maps to
+    `--with-skills`.
+  - **neither** — the user installs skills themselves. No flag.
+
+  `--plugin` and `--with-skills` are two ways to install the same skills, so the
+  installer rejects them together. If the project already has
+  `.claude/skills/yds-*` from an older install, say that those directories are now
+  stale and should be deleted — the plugin ships the same skills under their new
+  names, and leaving both registers each skill twice.
 - **Q-H2. Per existing file**: merge (append only the missing sections) /
   back up then replace / skip.
 - **Q-H3. Bash guard strength**: standard (rm -rf /, force-push to the
@@ -141,9 +160,17 @@ modified. Wait for explicit approval. On approval, apply as follows.
 
 **Preferred path — run the installer, then refine:**
 
-1. Locate `harness/scripts/setup.sh`:
-   - in this repo if it _is_ dev-skills or contains a clone/submodule, else
-   - fetch via the official one-liner (network required):
+1. Locate `harness/scripts/setup.sh`, in this order — the first hit wins:
+   - **this skill's own plugin copy**, `"${CLAUDE_PLUGIN_ROOT}/harness/scripts/setup.sh"`.
+     When maruda runs as a plugin, `CLAUDE_PLUGIN_ROOT` is set in the shell, the
+     whole repository is in the plugin cache, and the script keeps its executable
+     bit. Prefer it: the installer is then guaranteed to be the same version as
+     the skills running the interview. Check with
+     `[[ -n "${CLAUDE_PLUGIN_ROOT:-}" && -f "${CLAUDE_PLUGIN_ROOT}/harness/scripts/setup.sh" ]]`.
+   - **the working repository**, if it _is_ maruda or contains a clone/submodule
+     (`harness/scripts/setup.sh`, `.claude/maruda/harness/scripts/setup.sh`).
+   - **the network**, via the official one-liner. Pin a release tag rather than
+     `main` so the installer matches a known version (network required):
 
      ```bash
      curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
@@ -157,7 +184,8 @@ modified. Wait for explicit approval. On approval, apply as follows.
    Node PM → `--pm`, Python PM → `--python-pm`, pip guard → `--guard-pip`,
    integration branch → `--integration-branch` (omit when it equals the
    default branch), default flow → `--default-flow`,
-   skills ON → `--with-skills`, CI OFF → `--no-ci`, format hook OFF →
+   skill install method → `--plugin` (+ `--plugin-ref`) or `--with-skills` or
+   neither, CI OFF → `--no-ci`, format hook OFF →
    `--no-format-hook`, bash guard OFF → `--no-bash-guard`, guidance hooks
    OFF → `--no-guidance-hooks`, rules OFF → `--no-rules`, .env guard OFF →
    `--no-env-guard`, PR Agent ON → `--pr-agent` (allowed with `--no-ci`,
@@ -192,7 +220,7 @@ from memory.
 Print a final checklist:
 
 ```
-[dev-skills harness]
+[maruda harness]
   skills:     OK (N) / MISSING
   CLAUDE.md:  CREATED / MERGED / SKIPPED
   hooks:      OK (selected scripts, executable)
@@ -202,7 +230,7 @@ Print a final checklist:
   flow:       integration branch: <branch> | default: <individual|batch|stack>
   protection: configured / NOT CONFIGURED / applied
   pr-agent:   disabled / written (OPENAI_KEY secret required)
-  next:       restart Claude Code to load hooks, then try /yds-software-evaluation .
+  next:       restart Claude Code to load hooks, then try /maruda:software-evaluation .
 ```
 
 Two follow-ups matter for the gates to actually gate:

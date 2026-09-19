@@ -1,0 +1,25 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "northraystudio",
+  "description": "NorthRay Studio's Claude Code plugins.",
+  "owner": {
+    "name": "NorthRay Studio"
+  },
+  "metadata": {
+    "description": "NorthRay Studio's Claude Code plugins.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "maruda",
+      "description": "AI with a harness. Agent skills, rules, CI and security gates for AI-assisted development — a diagnose → issue → plan → resolve ⇄ verify loop, shipped as one harness.",
+      "version": "0.1.0",
+      "author": {
+        "name": "NorthRay Studio"
+      },
+      "source": "./",
+      "category": "development",
+      "homepage": "https://github.com/northraystudio/maruda"
+    }
+  ]
+}

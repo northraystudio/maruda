@@ -29,7 +29,7 @@ commit per Issue.
 ## Decision
 
 A batch is an **Epic Issue holding its members as sub-issues**, on the branch
-`epic/<n>-<slug>`. The Epic is created by `yds-gh-batch-runner`, not by hand.
+`epic/<n>-<slug>`. The Epic is created by `gh-batch-runner`, not by hand.
 
 Within a batch, **no child PRs are created**. Each Issue lands on the integration
 branch as its own commit (`<type>(#<n>): ...`). CI and review happen once, on the

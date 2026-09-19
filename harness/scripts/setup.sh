@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# dev-skills harness installer (non-interactive).
+# maruda harness installer (non-interactive).
 # No language auto-detection by design: pass --langs explicitly, or --minimal
-# to install only the mechanical rails and decide languages later via /yds-setup.
+# to install only the mechanical rails and decide languages later via /maruda:setup.
 set -euo pipefail
 
 HARNESS_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +16,7 @@ Required (one of):
   --langs LIST      Comma-separated languages. First entry is the primary.
                     Supported: go, python, typescript, javascript
   --minimal         Install hooks + settings + rules only (no CLAUDE.md).
-                    Fill the stack later with /yds-setup in Claude Code.
+                    Fill the stack later with /maruda:setup in Claude Code.
 
 Options:
   --target DIR      Target project directory (default: current directory)
@@ -35,10 +35,16 @@ Options:
   --no-format-hook  Skip the format-on-write hook
   --no-bash-guard   Skip the dangerous-bash guard hook
   --no-guidance-hooks  Skip the SessionStart / Stop guidance hooks
-  --no-rules        Skip .claude/rules/dev-skills-cycle.md
+  --no-rules        Skip .claude/rules/maruda-cycle.md
   --no-env-guard    Skip .gitignore/.env.example handling
   --pr-agent        Add the advisory PR Agent workflow (qodo-ai/pr-agent; needs the OPENAI_KEY secret; never a required check)
   --protect         Apply branch protection (required status checks) via gh CLI
+  --plugin          Register the maruda Claude Code plugin in .claude/settings.json
+                    (extraKnownMarketplaces + enabledPlugins), so everyone who clones
+                    this repository installs the same skills. Mutually exclusive with
+                    --with-skills.
+  --plugin-ref REF  Marketplace ref to pin (branch or tag; default: main). Marketplace
+                    sources do not support a commit SHA — pin a release tag.
   --with-skills     Also run: npx skills add ymd38/dev-skills --skill '*' --agent claude-code -y --copy
   --force           Overwrite existing files (default: keep existing)
   -h, --help        Show this help
@@ -50,6 +56,9 @@ marks them required — pass --protect (needs gh auth + admin) or configure it
 in GitHub settings; the final checklist reports the current state.
 --pr-agent adds .github/workflows/pr-agent.yml + .pr_agent.toml (advisory AI
 review, opt-in; composes with --no-ci, not with --minimal).
+--plugin only records the marketplace and marks the plugin enabled; Claude Code
+does not auto-install from settings, so each user still runs /plugin install once.
+The final checklist prints the exact commands.
 Generated workflows also run for PRs whose base is a batch (epic/**) or an
 Issue branch (feat/** fix/** refactor/**), so batched and stacked work is
 verified; push triggers stay on the default and integration branches only.
@@ -75,6 +84,8 @@ NO_RULES=0
 NO_ENV_GUARD=0
 PROTECT=0
 PR_AGENT=0
+PLUGIN=0
+PLUGIN_REF="main"
 WITH_SKILLS=0
 FORCE=0
 
@@ -98,6 +109,8 @@ while [[ $# -gt 0 ]]; do
     --no-env-guard)      NO_ENV_GUARD=1; shift ;;
     --protect)           PROTECT=1; shift ;;
     --pr-agent)          PR_AGENT=1; shift ;;
+    --plugin)      PLUGIN=1; shift ;;
+    --plugin-ref)  PLUGIN_REF="$2"; shift 2 ;;
     --with-skills) WITH_SKILLS=1; shift ;;
     --force)      FORCE=1; shift ;;
     -h|--help)    usage; exit 0 ;;
@@ -108,6 +121,11 @@ done
 if [[ -z "$LANGS" && "$MINIMAL" != "1" ]]; then
   echo "error: --langs is required (e.g. --langs go,typescript), or pass --minimal" >&2
   usage >&2
+  exit 1
+fi
+
+if [[ "$PLUGIN" == "1" && "$WITH_SKILLS" == "1" ]]; then
+  echo "error: --plugin and --with-skills are two different ways to install the same skills; pick one" >&2
   exit 1
 fi
 
@@ -145,7 +163,7 @@ has_lang() {
 case "$PM" in pnpm|npm|yarn|bun) ;; *) echo "error: unsupported --pm: $PM" >&2; exit 1 ;; esac
 case "$PY_PM" in uv|pip|poetry) ;; *) echo "error: unsupported --python-pm: $PY_PM" >&2; exit 1 ;; esac
 
-echo "==> dev-skills harness → $TARGET"
+echo "==> maruda harness → $TARGET"
 
 # ── Status trackers for the final checklist ──
 ST_HOOKS=""
@@ -256,11 +274,33 @@ if [[ "$GUARD_PIP" == "1" ]]; then
   fi
 fi
 
+# ── Plugin registration (marketplace + enabled plugin) ──
+# Claude Code does not auto-install from settings: these two keys make the
+# marketplace known and mark the plugin enabled, and each user still runs
+# /plugin install once. Existing entries are merged, never replaced.
+ST_PLUGIN="skipped (use --plugin to pin the maruda plugin for everyone who clones this repository)"
+if [[ "$PLUGIN" == "1" ]]; then
+  if command -v jq >/dev/null 2>&1; then
+    tmp="$(mktemp)"
+    jq --arg ref "$PLUGIN_REF" '
+      .extraKnownMarketplaces = ((.extraKnownMarketplaces // {}) + {
+        northraystudio: {source: {source: "github", repo: "northraystudio/maruda", ref: $ref}}
+      })
+      | .enabledPlugins = ((.enabledPlugins // {}) + {"maruda@northraystudio": true})
+    ' "$SETTINGS" >"$tmp"
+    mv "$tmp" "$SETTINGS"
+    ST_PLUGIN="registered (northraystudio @ $PLUGIN_REF) — each user runs: /plugin install maruda@northraystudio"
+  else
+    ST_PLUGIN="FAILED — needs jq; add extraKnownMarketplaces + enabledPlugins to .claude/settings.json manually"
+    echo "warn: --plugin needs jq to edit settings.json" >&2
+  fi
+fi
+
 # ── Rules (cycle + score-aligned coding rules) ──
 if [[ "$NO_RULES" == "1" ]]; then
   ST_RULES="skipped (--no-rules)"
 else
-  RULE_FILES=(dev-skills-cycle.md coding-principles.md)
+  RULE_FILES=(maruda-cycle.md coding-principles.md)
   has_lang go && RULE_FILES+=(go.md)
   has_lang python && RULE_FILES+=(python.md)
   if has_lang typescript || has_lang javascript; then RULE_FILES+=(typescript.md); fi
@@ -274,6 +314,11 @@ else
     esac
   done
   ST_RULES="installed=$rules_installed kept=$rules_kept proposed=$rules_proposed (${RULE_FILES[*]})"
+  # The cycle rule was called dev-skills-cycle.md before the maruda rename. The
+  # installer never deletes what it did not write, so say it out loud instead.
+  if [[ -f "$TARGET/.claude/rules/dev-skills-cycle.md" ]]; then
+    ST_RULES="$ST_RULES — legacy dev-skills-cycle.md still present; delete it (replaced by maruda-cycle.md)"
+  fi
 fi
 
 # ── CLAUDE.md ────────────────────────────────
@@ -320,7 +365,7 @@ lang_title() {
 
 CLAUDE_MD="$TARGET/CLAUDE.md"
 if [[ "$MINIMAL" == "1" ]]; then
-  ST_CLAUDE="skipped (--minimal) — run /yds-setup in Claude Code to fill the stack"
+  ST_CLAUDE="skipped (--minimal) — run /maruda:setup in Claude Code to fill the stack"
 else
   primary="$(lang_title "${LANG_ARR[0]}")"
   others=""
@@ -363,7 +408,7 @@ else
   case "$INSTALL_RESULT" in
     installed) ST_CLAUDE="created ($primary${others:+ + $others})" ;;
     kept)      ST_CLAUDE="up to date" ;;
-    proposed)  ST_CLAUDE="kept existing — proposed version at CLAUDE.md.new (merge manually or via /yds-setup)" ;;
+    proposed)  ST_CLAUDE="kept existing — proposed version at CLAUDE.md.new (merge manually or via /maruda:setup)" ;;
   esac
 fi
 
@@ -604,7 +649,7 @@ CI_PATHS="" CI_JOBS="" SEMGREP_CONFIGS=""
 PUSH_BRANCHES="      - $BRANCH"$'\n'
 [[ "$INTEGRATION_BRANCH" != "$BRANCH" ]] && PUSH_BRANCHES+="      - $INTEGRATION_BRANCH"$'\n'
 PR_BASE_BRANCHES="$PUSH_BRANCHES"
-PR_BASE_BRANCHES+="      # batch (epic) and stacked-PR bases — see .claude/rules/dev-skills-cycle.md"$'\n'
+PR_BASE_BRANCHES+="      # batch (epic) and stacked-PR bases — see .claude/rules/maruda-cycle.md"$'\n'
 for pr_base in 'epic/**' 'feat/**' 'fix/**' 'refactor/**'; do
   PR_BASE_BRANCHES+="      - '$pr_base'"$'\n'
 done
@@ -632,7 +677,7 @@ HAS_NODE=0
 NODE_AUDIT_JOB=""
 CI_GENERATED=0
 if [[ "$MINIMAL" == "1" ]]; then
-  ST_CI="skipped (--minimal; CI needs languages — re-run with --langs or use /yds-setup)"
+  ST_CI="skipped (--minimal; CI needs languages — re-run with --langs or use /maruda:setup)"
 elif [[ "$NO_CI" == "1" ]]; then
   ST_CI="skipped (--no-ci)"
 else
@@ -784,7 +829,7 @@ if [[ "$CI_GENERATED" == "1" || "$PR_AGENT" == "1" ]]; then
     {
       echo "# Harness setup checklist"
       echo
-      echo "Generated by dev-skills setup. CI is strict by design — these are the"
+      echo "Generated by maruda setup. CI is strict by design — these are the"
       echo "manual steps that turn it green and make the gates actually gate."
       echo
       commit_list="\`.claude/\`, \`CLAUDE.md\`, \`.github/\`"
@@ -878,9 +923,14 @@ if [[ ${#NEW_FILES[@]} -gt 0 ]]; then
   UPDATES_LINE="${#NEW_FILES[@]} proposed as *.new — diff each against its original, merge manually, then delete the .new"
 fi
 
+NEXT_LINE='open the project in Claude Code, then try "/maruda:software-evaluation ." — or "/maruda:setup" to refine commands interactively'
+if [[ "$PLUGIN" == "1" ]]; then
+  NEXT_LINE='in Claude Code run "/plugin install maruda@northraystudio" (once per user), then "/maruda:setup"'
+fi
+
 cat <<EOF
 
-[dev-skills harness]
+[maruda harness]
   target:     $TARGET
   hooks:      $ST_HOOKS
   settings:   $ST_SETTINGS
@@ -891,10 +941,11 @@ cat <<EOF
   checklist:  $ST_CHECKLIST
   protection: $ST_PROTECT
   pr-agent:   $ST_PRAGENT
+  plugin:     $ST_PLUGIN
   env guard:  $ST_ENV
   skills:     $ST_SKILLS
   updates:    $UPDATES_LINE
-  next:       open the project in Claude Code, then try "/yds-software-evaluation ." — or "/yds-setup" to refine commands interactively
+  next:       $NEXT_LINE
 EOF
 
 if [[ ${#NEW_FILES[@]} -gt 0 ]]; then

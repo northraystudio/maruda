@@ -1,10 +1,10 @@
 ---
-name: yds-spec-doc
+name: spec-doc
 description: >
   Generate or sync a "Living Specification" (docs/spec.md) from source code to eliminate
   doc-code drift. Use when creating, updating, or reviewing architecture documentation for
   a directory or module. Triggers on requests like "generate spec", "create spec.md",
-  "sync documentation", "update architecture docs", "/yds-spec-doc", or when asked to document
+  "sync documentation", "update architecture docs", "/maruda:spec-doc", or when asked to document
   a codebase directory.
 ---
 
@@ -233,6 +233,6 @@ stateDiagram-v2
 
 This spec was last verified against commit `[hash]` on `YYYY-MM-DD`.
 
-To update this spec: run `/yds-spec-doc [module path]` after significant code changes.
+To update this spec: run `/maruda:spec-doc [module path]` after significant code changes.
 Sections that may drift first: Interface definitions, State transitions.
 ````

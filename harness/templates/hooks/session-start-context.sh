@@ -9,5 +9,5 @@ root="${CLAUDE_PROJECT_DIR:-.}"
 skills=0
 [[ -d "$root/.claude/skills" ]] && skills=$(find "$root/.claude/skills" -name SKILL.md 2>/dev/null | wc -l | tr -d ' ')
 
-echo "[dev-skills] harness active | skills installed: ${skills} | cycle: Diagnose → Draft/Register → Plan → Resolve ⇄ Verify. Prefer this cycle over ad-hoc one-shot fixes; implementation requires an agreed plan comment from yds-gh-issue-planner."
+echo "[maruda] harness active | skills installed: ${skills} | cycle: Diagnose → Draft/Register → Plan → Resolve ⇄ Verify. Prefer this cycle over ad-hoc one-shot fixes; implementation requires an agreed plan comment from gh-issue-planner."
 exit 0

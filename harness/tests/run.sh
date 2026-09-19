@@ -21,7 +21,7 @@ check() { # $1 description, $2 command (eval'd)
 mkdir -p "$WORK/full"
 bash "$SETUP" --target "$WORK/full" --langs go,typescript --pm pnpm >"$WORK/full.out" 2>&1
 for f in CLAUDE.md .claude/settings.json .claude/hooks/post-write-format.sh \
-         .claude/hooks/pre-bash-guard.sh .claude/rules/dev-skills-cycle.md \
+         .claude/hooks/pre-bash-guard.sh .claude/rules/maruda-cycle.md \
          .github/workflows/ci.yml .github/workflows/security-scan.yml \
          .gitleaks.toml .semgrepignore .gitignore .env.example; do
   check "full: $f exists" "[[ -f '$WORK/full/$f' ]]"
@@ -120,7 +120,7 @@ check "minimal: principles yes, lang rules no" "[[ -f '$WORK/min/.claude/rules/c
 # ── 5. Component opt-outs ────────────────────
 mkdir -p "$WORK/optout"
 bash "$SETUP" --target "$WORK/optout" --langs go --no-ci --no-rules --no-env-guard --no-format-hook >/dev/null 2>&1
-check "optout: no rules"        "[[ ! -f '$WORK/optout/.claude/rules/dev-skills-cycle.md' ]]"
+check "optout: no rules"        "[[ ! -f '$WORK/optout/.claude/rules/maruda-cycle.md' ]]"
 check "optout: no .env.example" "[[ ! -f '$WORK/optout/.env.example' ]]"
 check "optout: no format hook"  "[[ ! -f '$WORK/optout/.claude/hooks/post-write-format.sh' ]]"
 check "optout: no .github"      "[[ ! -d '$WORK/optout/.github' ]]"
@@ -262,6 +262,64 @@ check "pin: pr-agent target is SHA-pinned"  "[[ \$(unpinned_uses '$PA/.github/wo
 mkdir -p "$WORK/pinprobe"
 printf 'jobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n' >"$WORK/pinprobe/probe.yml"
 check "pin: detector counts a mutable tag" "[[ \$(unpinned_uses '$WORK/pinprobe') -eq 1 ]]"
+
+# ── 10. --plugin registers the marketplace ───
+# Claude Code does not auto-install from settings, so the flag's whole job is
+# writing two keys without disturbing anything already in settings.json.
+if command -v jq >/dev/null 2>&1; then
+  PL="$WORK/plugin"
+  mkdir -p "$PL"
+  bash "$SETUP" --target "$PL" --langs go --no-ci --plugin >"$WORK/plugin.out" 2>&1
+  PLS="$PL/.claude/settings.json"
+  check "plugin: marketplace registered" \
+    "jq -e '.extraKnownMarketplaces.northraystudio.source.repo == \"northraystudio/maruda\"' '$PLS'"
+  check "plugin: ref defaults to main" \
+    "jq -e '.extraKnownMarketplaces.northraystudio.source.ref == \"main\"' '$PLS'"
+  check "plugin: plugin enabled" \
+    "jq -e '.enabledPlugins[\"maruda@northraystudio\"] == true' '$PLS'"
+  check "plugin: hooks still written" "jq -e '.hooks.PreToolUse' '$PLS'"
+  check "plugin: checklist reports it" "grep -q 'plugin:     registered' '$WORK/plugin.out'"
+  check "plugin: next step is /plugin install" \
+    "grep -q '/plugin install maruda@northraystudio' '$WORK/plugin.out'"
+
+  # --plugin-ref pins a tag; marketplace sources cannot take a SHA.
+  PLR="$WORK/pluginref"
+  mkdir -p "$PLR"
+  bash "$SETUP" --target "$PLR" --minimal --plugin --plugin-ref v0.1.0 >/dev/null 2>&1
+  check "plugin: --plugin-ref pins the tag" \
+    "jq -e '.extraKnownMarketplaces.northraystudio.source.ref == \"v0.1.0\"' '$PLR/.claude/settings.json'"
+
+  # Merging into an existing settings.json must not drop what is there.
+  PLM="$WORK/pluginmerge"
+  mkdir -p "$PLM/.claude"
+  printf '{"extraKnownMarketplaces":{"mine":{"source":{"source":"github","repo":"me/mine"}}},"enabledPlugins":{"other@mine":true},"permissions":{"allow":["Bash(ls:*)"]}}\n' \
+    >"$PLM/.claude/settings.json"
+  bash "$SETUP" --target "$PLM" --minimal --plugin >/dev/null 2>&1
+  check "plugin: existing marketplace preserved" \
+    "jq -e '.extraKnownMarketplaces.mine.source.repo == \"me/mine\"' '$PLM/.claude/settings.json'"
+  check "plugin: existing enabledPlugins preserved" \
+    "jq -e '.enabledPlugins[\"other@mine\"] == true' '$PLM/.claude/settings.json'"
+  check "plugin: new entries added alongside" \
+    "jq -e '.enabledPlugins[\"maruda@northraystudio\"] == true and .extraKnownMarketplaces.northraystudio != null' '$PLM/.claude/settings.json'"
+  check "plugin: unrelated keys preserved" \
+    "jq -e '.permissions.allow[0] == \"Bash(ls:*)\"' '$PLM/.claude/settings.json'"
+
+  # Without the flag, neither key is ever written.
+  check "plugin: absent unless requested" \
+    "! jq -e '.extraKnownMarketplaces // .enabledPlugins' '$WORK/full/.claude/settings.json'"
+fi
+check "plugin: rejects --plugin with --with-skills" \
+  "! bash '$SETUP' --target '$WORK/plugin' --minimal --plugin --with-skills >/dev/null 2>&1"
+
+# ── 11. Legacy cycle rule is called out ──────
+# The installer never deletes files it did not write; it must say so instead.
+LG="$WORK/legacyrule"
+mkdir -p "$LG/.claude/rules"
+printf 'old cycle rule\n' >"$LG/.claude/rules/dev-skills-cycle.md"
+bash "$SETUP" --target "$LG" --minimal >"$WORK/legacyrule.out" 2>&1
+check "legacy: maruda-cycle.md installed"  "[[ -f '$LG/.claude/rules/maruda-cycle.md' ]]"
+check "legacy: old file left untouched"    "grep -q 'old cycle rule' '$LG/.claude/rules/dev-skills-cycle.md'"
+check "legacy: deletion is reported"       "grep -q 'legacy dev-skills-cycle.md still present' '$WORK/legacyrule.out'"
 
 # ── 9. Arg validation ────────────────────────
 check "args: no flags fails"       "! bash '$SETUP' --target '$WORK' >/dev/null 2>&1"

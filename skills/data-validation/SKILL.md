@@ -1,5 +1,5 @@
 ---
-name: yds-data-validation
+name: data-validation
 description: >
   Inspect a project's data for correctness and produce a read-only validation report —
   record counts, NULL rates, value distribution, uniqueness, referential integrity,
@@ -7,8 +7,8 @@ description: >
   test fixtures/seed data or from an explicitly configured connection; never from a
   guessed or production source.
   Triggers on requests like "validate the data", "check data quality", "データ検証",
-  "データの妥当性を確認", "NULL率を調べて", "件数がおかしい", "/yds-data-validation",
-  or when `yds-gh-issue-resolver` verifies a data-related change.
+  "データの妥当性を確認", "NULL率を調べて", "件数がおかしい", "/maruda:data-validation",
+  or when `gh-issue-resolver` verifies a data-related change.
   Does NOT modify any data or code — read-only inspection only. Produces no JSON.
 ---
 
@@ -19,17 +19,17 @@ concrete numbers and sampled rows, never in impressions. Every failed check stat
 **expected** value, the **actual** value, and the **evidence** that produced it.
 
 **This is a read-only inspection.** You do not modify data, schema, or code. Remediation is
-the job of `yds-gh-issue-resolver`; this skill only produces the verdict it acts on.
+the job of `gh-issue-resolver`; this skill only produces the verdict it acts on.
 
 ## Two Modes
 
 | Mode | Invoked by | File output |
 |------|-----------|-------------|
-| **standalone** | the user (`/yds-data-validation <path>`) | none by default — session output only. Save to `docs/yds-data-validation/<target>.YYYYMMDD.md` **only when the user explicitly asks for a report file** |
-| **verify** | `yds-gh-issue-resolver` Step 8 | **never** — session output only |
+| **standalone** | the user (`/maruda:data-validation <path>`) | none by default — session output only. Save to `docs/data-validation/<target>.YYYYMMDD.md` **only when the user explicitly asks for a report file** |
+| **verify** | `gh-issue-resolver` Step 8 | **never** — session output only |
 
 **No JSON summary is produced in either mode.** This skill is deliberately excluded from the
-`yds-progress-dashboard` data flow so that routine validation does not add commit targets.
+`progress-dashboard` data flow so that routine validation does not add commit targets.
 
 ---
 
@@ -71,7 +71,7 @@ data is *supposed* to look like, from — in order of authority:
    enum types, `CHECK` constraints)
 2. Type definitions and validation code (struct tags, zod/pydantic schemas, DTOs)
 3. Existing assertions in the test suite
-4. `docs/spec.md` if `yds-spec-doc` has been run
+4. `docs/spec.md` if `spec-doc` has been run
 
 Record which contract each check came from. A check with no contract behind it is a **WARN**
 at most — it cannot be a **FAIL**.
@@ -188,14 +188,14 @@ never be triggered by a guess.
 ## Phase 4: Attribution — regression か既存か
 
 This phase is what makes autonomous remediation safe. Run it whenever a **baseline** is
-available: in verify mode `yds-gh-issue-resolver` supplies the base ref, and the same checks are
+available: in verify mode `gh-issue-resolver` supplies the base ref, and the same checks are
 run against the base state before the diff is judged.
 
 Classify every FAIL and WARN into exactly one of:
 
 | Class | Definition | Who fixes it |
 |-------|-----------|--------------|
-| **regression** | Passes on the baseline, fails on the current state | `yds-gh-issue-resolver`, autonomously, within the agreed plan's impact scope |
+| **regression** | Passes on the baseline, fails on the current state | `gh-issue-resolver`, autonomously, within the agreed plan's impact scope |
 | **pre-existing** | Fails on the baseline too | Nobody, here. Propose an Issue instead |
 | **environmental** | Fixture missing, connection unavailable, tooling absent | Nobody. Report and stop |
 
@@ -232,7 +232,7 @@ Before emitting the report, verify:
 
 ## Output Template
 
-The header block is fixed — `yds-gh-issue-resolver` parses it. Keep the marker, the key names,
+The header block is fixed — `gh-issue-resolver` parses it. Keep the marker, the key names,
 and the ordering exactly as below.
 
 ````markdown

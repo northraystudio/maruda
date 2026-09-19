@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# dev-skills harness — one-liner entry point.
+# maruda harness — one-liner entry point.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ymd38/dev-skills/main/harness/scripts/install.sh \
 #     | bash -s -- --langs go,typescript --pm pnpm
@@ -23,7 +23,7 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "==> fetching dev-skills ($REF)"
-git clone --quiet --depth 1 --branch "$REF" "$REPO" "$TMP/dev-skills"
+echo "==> fetching maruda ($REF)"
+git clone --quiet --depth 1 --branch "$REF" "$REPO" "$TMP/maruda"
 
-bash "$TMP/dev-skills/harness/scripts/setup.sh" --target "$TARGET" "$@"
+bash "$TMP/maruda/harness/scripts/setup.sh" --target "$TARGET" "$@"

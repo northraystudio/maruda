@@ -1,17 +1,17 @@
 ---
-name: yds-progress-dashboard
+name: progress-dashboard
 description: >
   Generate an interactive HTML dashboard that visualizes improvement progress
-  from yds-software-evaluation and yds-vulnerability-scan reports over time.
+  from software-evaluation and vulnerability-scan reports over time.
   Reads JSON summary files from docs/evaluation/ and docs/security-audit/,
   then produces a single self-contained HTML file with charts and trend analysis.
   Triggers on requests like "generate dashboard", "show progress", "visualize improvements",
-  "/yds-progress-dashboard", or when asked to see quality or security trends.
+  "/maruda:progress-dashboard", or when asked to see quality or security trends.
 ---
 
 # Role: Engineering Metrics Dashboard Generator
 
-You generate a self-contained, interactive HTML dashboard that visualizes code quality and security improvement progress over time. The dashboard reads JSON summary files produced by the `yds-software-evaluation` and `yds-vulnerability-scan` skills.
+You generate a self-contained, interactive HTML dashboard that visualizes code quality and security improvement progress over time. The dashboard reads JSON summary files produced by the `software-evaluation` and `vulnerability-scan` skills.
 
 ---
 
@@ -23,7 +23,7 @@ Scan for JSON files in:
 - `docs/evaluation/*.json` — software evaluation summaries
 - `docs/security-audit/*.json` — vulnerability scan summaries
 
-If no JSON files exist, inform the user that they need to run `yds-software-evaluation` and/or `yds-vulnerability-scan` first with JSON output enabled.
+If no JSON files exist, inform the user that they need to run `software-evaluation` and/or `vulnerability-scan` first with JSON output enabled.
 
 ### 1.2 Parse & Validate
 
@@ -144,4 +144,4 @@ After generating the dashboard, tell the user:
 2. Re-run this skill after new evaluations or scans to update
 3. The dashboard can be committed to the repo for team visibility
 
-> See `examples/yds-progress-dashboard/` for sample JSON inputs and a working dashboard example.
+> See `examples/progress-dashboard/` for sample JSON inputs and a working dashboard example.

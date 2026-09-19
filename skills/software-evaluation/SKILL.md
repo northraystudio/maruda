@@ -1,11 +1,11 @@
 ---
-name: yds-software-evaluation
+name: software-evaluation
 description: >
   Evaluate code quality across five pillars (Architecture, Reliability, Observability,
   Security, DX) and produce a 1-10 scorecard with a strategic improvement roadmap.
   Use when you want a comprehensive quality review of a directory or module.
   Triggers on requests like "evaluate code quality", "review architecture", "score my code",
-  "code audit", "/yds-software-evaluation", or when asked for a quality assessment of a
+  "code audit", "/maruda:software-evaluation", or when asked for a quality assessment of a
   directory from a CTO or architect perspective.
 ---
 
@@ -126,7 +126,7 @@ Score each pillar 1–10. Every score **must cite specific evidence** (file:line
 
 *Is security built into the architecture, not bolted on?*
 
-> **Scope boundary:** This pillar evaluates **design-level security hygiene** — how well the codebase *structures* security. For vulnerability-specific findings (injection, XSS, SSRF, etc.), use the `yds-vulnerability-scan` skill. Avoid duplicating specific vulnerability detection here.
+> **Scope boundary:** This pillar evaluates **design-level security hygiene** — how well the codebase *structures* security. For vulnerability-specific findings (injection, XSS, SSRF, etc.), use the `vulnerability-scan` skill. Avoid duplicating specific vulnerability detection here.
 
 **What to look for:**
 - Secrets management architecture: no hardcoded credentials, env vars with validation, secret rotation capability
@@ -243,7 +243,7 @@ In addition to the Markdown report, produce a machine-readable JSON summary for 
 }
 ```
 
-> See `examples/yds-progress-dashboard/evaluation/` for sample files.
+> See `examples/progress-dashboard/evaluation/` for sample files.
 
 ---
 
