@@ -2,15 +2,15 @@
 
 ## Cycle
 
-- Diagnosis skills (`yds-software-evaluation`, `yds-vulnerability-scan`,
-  `yds-data-validation`) produce evidence; they never silently rewrite the codebase.
-- Implementation requires an agreed plan comment from `yds-gh-issue-planner`
+- Diagnosis skills (`software-evaluation`, `vulnerability-scan`,
+  `data-validation`) produce evidence; they never silently rewrite the codebase.
+- Implementation requires an agreed plan comment from `gh-issue-planner`
   (`<!-- gh-issue-planner:agreed-plan -->`). Do not widen scope beyond it.
-- `yds-gh-issue-resolver` may fix **regression** findings only, ≤3 iterations,
-  within the plan's impact scope. Pre-existing findings → `yds-report-to-issues`
+- `gh-issue-resolver` may fix **regression** findings only, ≤3 iterations,
+  within the plan's impact scope. Pre-existing findings → `report-to-issues`
   after user approval — never fixed in the same PR.
 - Never relax tests, types, or thresholds to greenwash a check.
-- Living docs anytime: `/yds-spec-doc`. Trends: `/yds-progress-dashboard`.
+- Living docs anytime: `/maruda:spec-doc`. Trends: `/maruda:progress-dashboard`.
 
 ## Flow — one Issue or several
 
@@ -40,7 +40,7 @@ CLAUDE.md, so the question is only asked when the answer is not the default.
 - **Batch regressions are measured against the integration branch.** What newly
   breaks relative to it is the batch's regression and is fixed under the usual
   resolver limits; what already failed on the integration branch goes to
-  `yds-report-to-issues` — never fixed in the same PR.
+  `report-to-issues` — never fixed in the same PR.
 - Branch protection does not apply to `epic/**`. That is expected: the gate is
   the PR into the integration branch, which must pass CI and review.
 
@@ -51,7 +51,7 @@ CLAUDE.md, so the question is only asked when the answer is not the default.
 - Record requirement and design decisions ("why we chose X") as ADRs in
   `docs/adr/NNNN-<slug>.md` (Context / Decision / Consequences), committed
   and reviewed via PR. Small, issue-scoped decisions stay in the
-  `yds-gh-issue-planner` agreed-plan comment; agent auto-memory is for
+  `gh-issue-planner` agreed-plan comment; agent auto-memory is for
   personal working preferences only, never for project decisions.
 - Security-scan false positives: allowlist the smallest unit (exact value /
   rule id, `# nosemgrep: <rule-id>` with a reason) — never a whole file or

@@ -9,7 +9,7 @@ command -v jq >/dev/null 2>&1 || exit 0
 jq -n '{
   hookSpecificOutput: {
     hookEventName: "Stop",
-    systemMessage: "[dev-skills] If code changed this session: consider /yds-software-evaluation on the diff, or continue Plan → Resolve if an issue is in flight."
+    systemMessage: "[maruda] If code changed this session: consider /maruda:software-evaluation on the diff, or continue Plan → Resolve if an issue is in flight."
   }
 }'
 exit 0

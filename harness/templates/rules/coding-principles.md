@@ -1,10 +1,10 @@
 # Coding principles — write to the score
 
-These rules are the `yds-software-evaluation` pillars inverted into "how to
+These rules are the `software-evaluation` pillars inverted into "how to
 write it right the first time": following them is what an 8–9 score looks
 like. Tags: [ARC] Architecture · [REL] Reliability · [OBS] Observability ·
 [SEC] Security · [DX] Developer Experience. The [SEC] rules also preempt
-`yds-vulnerability-scan` (OWASP) findings.
+`vulnerability-scan` (OWASP) findings.
 
 ## Core principles
 

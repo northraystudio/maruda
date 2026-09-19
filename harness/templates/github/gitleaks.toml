@@ -1,4 +1,4 @@
-title = "Gitleaks configuration (dev-skills harness)"
+title = "Gitleaks configuration (maruda harness)"
 
 # Inherit the gitleaks default rules.
 # When a false positive appears, allowlist the smallest possible unit

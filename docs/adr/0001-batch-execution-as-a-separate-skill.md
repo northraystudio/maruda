@@ -11,22 +11,22 @@ together — needs work the single-Issue resolver does not do: choosing the flow
 ordering Issues by their dependencies, verifying the integration branch as a
 whole, and opening one PR to the integration target.
 
-`yds-gh-issue-resolver` carries invariants that make it safe to run
+`gh-issue-resolver` carries invariants that make it safe to run
 autonomously: it fixes **regression** findings only, for at most 3 iterations,
 and never leaves the agreed plan's impact scope. Those invariants are defined
 against a single Issue and a single baseline (the integration target).
 
 Two placements were considered:
 
-1. Extend `yds-gh-issue-resolver` with a batch mode.
+1. Extend `gh-issue-resolver` with a batch mode.
 2. Add a new orchestrating skill that delegates per-Issue work.
 
 ## Decision
 
-Add a new skill, **`yds-gh-batch-runner`**, that owns the batch flow and
+Add a new skill, **`gh-batch-runner`**, that owns the batch flow and
 delegates each Issue's implementation to the existing resolver contract.
 
-`yds-gh-issue-resolver` gains exactly one addition: an explicit **base ref**
+`gh-issue-resolver` gains exactly one addition: an explicit **base ref**
 (defaulting to the integration target, and set to the dependency's branch in the
 stacked flow). Its regression/iteration/scope invariants are unchanged.
 
