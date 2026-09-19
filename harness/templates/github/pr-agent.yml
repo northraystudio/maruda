@@ -12,7 +12,8 @@ on:
     # synchronize is kept so pr-agent's push handler (.pr_agent.toml
     # handle_push_trigger / push_commands) can run on new commits.
     types: [opened, synchronize, reopened, ready_for_review]
-    branches: [{{DEFAULT_BRANCH}}]
+    branches:
+{{PR_BASE_BRANCHES}}
   issue_comment:
     types: [created]
 

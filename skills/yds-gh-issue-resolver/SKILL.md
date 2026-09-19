@@ -31,9 +31,18 @@ From the `comments` array:
 
 ### Step 2: Branch and Worktree Setup
 
+Resolve `<base-ref>` first — everything downstream (the branch, the PR's base, and the
+verification baseline in Step 8) is measured against it:
+
+| Flow | `<base-ref>` |
+|------|--------------|
+| individual (default) | the integration branch recorded in CLAUDE.md, falling back to the default branch |
+| stack | the branch of the Issue this one depends on |
+| batch | the epic branch, passed in by `yds-gh-batch-runner` |
+
 ```bash
-# 1. Create a branch from the default branch (without switching the main working tree)
-git branch <branch-name>
+# 1. Create a branch from <base-ref> (without switching the main working tree)
+git branch <branch-name> <base-ref>
 # Examples: fix/42-add-timeout-to-fetch  feat/15-user-export-api
 
 # 2. Create an isolated worktree from that branch
@@ -70,7 +79,7 @@ If tests fail, diagnose and fix before proceeding. Do not skip failing tests.
 base branch and attribution is cheapest:
 
 ```
-/yds-data-validation <changed-data-scope>   # baseline: the default branch
+/yds-data-validation <changed-data-scope>   # baseline: <base-ref>
 ```
 
 Treat a `regression`-class FAIL exactly like a failing test: fix it now, do not proceed with
@@ -97,7 +106,7 @@ Run the application in the normal development environment and verify the fix on 
 ### Step 7: Create a Pull Request
 
 ```bash
-gh pr create --title "<type>(#<id>): <short description>" --body "$(cat <<'EOF'
+gh pr create --base <base-ref> --title "<type>(#<id>): <short description>" --body "$(cat <<'EOF'
 ## Summary
 <What was changed and why — reference the issue>
 
@@ -141,11 +150,13 @@ Run every skill whose triggers fire. If none fire, skip to 8.5.
 
 #### 8.2 Run the diagnosis
 
-Run each selected skill against the changed scope, **passing the base ref as the baseline** so
-attribution is possible:
+Run each selected skill against the changed scope, **passing `<base-ref>` from Step 2 as the
+baseline** so attribution is possible. The baseline is always what this branch was cut from —
+in a batch that is the epic branch, so a finding that already fails there is pre-existing for
+this Issue:
 
 ```
-/yds-data-validation <changed-data-scope>     # baseline: the default branch
+/yds-data-validation <changed-data-scope>     # baseline: <base-ref>
 /yds-vulnerability-scan <changed-path>
 /yds-software-evaluation <changed-path>
 ```
@@ -279,6 +290,8 @@ git fetch --prune
 ## Key Principles
 
 - **Never start implementation without an agreed plan comment** posted by `yds-gh-issue-planner`
+- **`<base-ref>` is one decision made once** (Step 2) and reused for the branch, the PR base
+  and the verification baseline — never mix two of them
 - Stay strictly within the agreed plan — no scope creep
 - **Verify autonomously, remediate only regressions.** Re-running the diagnosis and fixing what
   this change broke is this skill's job, not a suggestion handed back to the user. What this

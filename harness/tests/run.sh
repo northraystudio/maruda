@@ -58,6 +58,41 @@ if python3 -c 'import yaml' >/dev/null 2>&1; then
   check "yaml: py-only ci.yml parses" "python3 -c \"import yaml; yaml.safe_load(open('$WORK/pyonly/.github/workflows/ci.yml'))\""
 fi
 
+# ── Flow: integration branch & PR bases ─────
+FULL_CI="$WORK/full/.github/workflows/ci.yml"
+FULL_SCAN="$WORK/full/.github/workflows/security-scan.yml"
+check "flow: PR base includes default branch"    "grep -qx '      - main' '$FULL_CI'"
+for base in 'epic/**' 'feat/**' 'fix/**' 'refactor/**'; do
+  check "flow: PR base includes $base"           "grep -qxF \"      - '$base'\" '$FULL_CI'"
+done
+# epic/** must appear in the pull_request filter only — pushes stay narrow.
+check "flow: push trigger stays narrow (ci)"     "[[ \$(grep -cF \"epic/**\" '$FULL_CI') -eq 1 ]]"
+check "flow: scan PR base includes epic"         "grep -qxF \"      - 'epic/**'\" '$FULL_SCAN'"
+check "flow: push trigger stays narrow (scan)"   "[[ \$(grep -cF \"epic/**\" '$FULL_SCAN') -eq 1 ]]"
+check "flow: default is individual in CLAUDE.md" "grep -q 'Default flow for several Issues at once: \`individual\`' '$WORK/full/CLAUDE.md'"
+check "flow: default integration = --branch"     "grep -q 'PR integration branch: \`main\`' '$WORK/full/CLAUDE.md'"
+check "flow: checklist reports flow"             "grep -q 'flow:.*integration branch: main | default: individual' '$WORK/full.out'"
+check "flow: no unreplaced tokens in CLAUDE.md"  "! grep -Eq '\{\{[A-Z_]+\}\}' '$WORK/full/CLAUDE.md'"
+check "flow: no unreplaced tokens in ci.yml"     "! grep -Eq '\{\{[A-Z_]+\}\}' '$FULL_CI'"
+
+mkdir -p "$WORK/flow"
+bash "$SETUP" --target "$WORK/flow" --langs go --integration-branch staging \
+  --default-flow batch --pr-agent >"$WORK/flow.out" 2>&1
+FLOW_CI="$WORK/flow/.github/workflows/ci.yml"
+check "staging: recorded in CLAUDE.md"           "grep -q 'PR integration branch: \`staging\`' '$WORK/flow/CLAUDE.md'"
+check "staging: default flow recorded"           "grep -q 'Default flow for several Issues at once: \`batch\`' '$WORK/flow/CLAUDE.md'"
+check "staging: both branches are PR bases"      "grep -qx '      - main' '$FLOW_CI' && grep -qx '      - staging' '$FLOW_CI'"
+# staging appears once in the pull_request filter and once in the push filter.
+check "staging: push trigger covers staging"     "[[ \$(grep -cx '      - staging' '$FLOW_CI') -eq 2 ]]"
+check "staging: pr-agent picks up staging"       "grep -qx '      - staging' '$WORK/flow/.github/workflows/pr-agent.yml'"
+check "staging: checklist reports it"            "grep -q 'flow:.*integration branch: staging | default: batch' '$WORK/flow.out'"
+check "flow: invalid --default-flow fails"       "! bash '$SETUP' --target '$WORK/flow' --langs go --default-flow bogus"
+if python3 -c 'import yaml' >/dev/null 2>&1; then
+  for y in ci.yml security-scan.yml pr-agent.yml; do
+    check "yaml: staging $y parses" "python3 -c \"import yaml; yaml.safe_load(open('$WORK/flow/.github/workflows/$y'))\""
+  done
+fi
+
 # ── 2. YAML validity (needs python3 + pyyaml) ─
 if python3 -c 'import yaml' >/dev/null 2>&1; then
   for y in ci.yml security-scan.yml; do
@@ -165,7 +200,7 @@ check "pr-agent: CI count stays 4"             "grep -q 'written=4 kept=0 propos
 check "pr-agent: action pinned to tag SHA"     "grep -Eq 'uses: qodo-ai/pr-agent@[0-9a-f]{40} # v[0-9.]+' '$PAW'"
 check "pr-agent: pull_request, never _target"  "grep -q '^  pull_request:' '$PAW' && ! grep -q 'pull_request_target' '$PAW'"
 check "pr-agent: no workflow_run gate"         "! grep -q 'workflow_run' '$PAW'"
-check "pr-agent: branch filter rendered"       "grep -q 'branches: \[main\]' '$PAW'"
+check "pr-agent: branch filter rendered"       "grep -qx '      - main' '$PAW' && grep -qxF \"      - 'epic/**'\" '$PAW'"
 check "pr-agent: draft + fork guards"          "grep -q 'pull_request.draft == false' '$PAW' && grep -q 'head.repo.full_name == github.repository' '$PAW'"
 check "pr-agent: slash cmd allowlist + prefix" "grep -q 'startsWith(github.event.comment.body' '$PAW' && grep -q '\"OWNER\",\"MEMBER\",\"COLLABORATOR\"' '$PAW'"
 check "pr-agent: concurrency split by event"   "grep -q 'group: pr-agent-.*github.event_name' '$PAW' && grep -q 'cancel-in-progress: .*github.event_name == ' '$PAW'"

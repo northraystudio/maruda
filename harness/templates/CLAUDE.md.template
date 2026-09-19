@@ -16,12 +16,23 @@ When changes touch only one ecosystem, run that ecosystem's test command, not th
 - CI must pass before merge. Fix the cause upstream; never relax tests, types,
   lint rules, or thresholds to make a check green.
 
+## Flow
+
+- PR integration branch: `{{INTEGRATION_BRANCH}}` — CI and review always run on
+  the PR into it. `{{DEFAULT_BRANCH}}` is the default branch.
+- Default flow for several Issues at once: `{{DEFAULT_FLOW}}`
+  (individual / batch / stack). Whether Issues are batched is decided by
+  "do these ship together?", not by the dependency graph.
+- Dependencies between Issues live on the Issue itself (GitHub `blocked_by` /
+  sub-issues) and may be updated at any time. See `.claude/rules/dev-skills-cycle.md`.
+
 ## Improvement cycle
 
 Prefer the cycle over ad-hoc one-shot fixes:
 Diagnose (`/yds-software-evaluation`, `/yds-vulnerability-scan`, `/yds-data-validation`)
 → Draft/Register (`/yds-gh-issue-drafter`, `/yds-report-to-issues`)
-→ Plan (`/yds-gh-issue-planner`) → Resolve+Verify (`/yds-gh-issue-resolver`).
+→ Plan (`/yds-gh-issue-planner`) → Resolve+Verify (`/yds-gh-issue-resolver`,
+or `/yds-gh-batch-runner` when several Issues ship together).
 
 Rules live in `.claude/rules/`: the cycle contract (`dev-skills-cycle.md`),
 score-aligned coding principles (`coding-principles.md` — following them is
