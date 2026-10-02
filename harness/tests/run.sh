@@ -180,6 +180,15 @@ deny|git push origin +main
 deny|git push --force origin refs/heads/main
 deny|git push --force-with-lease origin HEAD:main
 deny|git -C repo push -uf origin master
+deny|git push --force origin main>/dev/null
+deny|git push --force origin main 2>&1
+deny|git push --force "$(git remote)" main
+deny|git push --force `git remote` main
+deny|git push --force origin $(git branch --show-current)
+deny|git push --force origin HEAD:`git branch --show-current`
+deny|rm -rf />/dev/null
+deny|rm -rf $(echo x) /
+deny|(cd /tmp; rm -rf /)
 deny|terraform destroy
 deny|docker system prune -af
 deny|echo x >> .env
@@ -193,6 +202,10 @@ allowed|git push origin main
 allowed|git push --force origin feat/domain-model
 allowed|git push --force-with-lease origin feat/maintenance-fix
 allowed|git push origin +feat/x
+allowed|git push --force "$(git remote)" feat/x
+allowed|git push origin $(git branch --show-current)
+allowed|git push --force origin feat/x >/dev/null 2>&1
+allowed|rm -rf $(mktemp -d)
 allowed|kubectl delete pod my-pod
 CASES
 fi

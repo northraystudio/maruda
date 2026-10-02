@@ -26,8 +26,13 @@ deny() {
 # and a branch name that merely contains "main" must not match.
 #
 # Shell syntax is not fully parsed. Quotes are dropped and the command is cut
-# at ; | & ( ) ` and newlines, so commands nested in $(...) or bash -c "..."
-# are inspected too — conservative by design.
+# into segments at ; | & < > and newlines (redirect targets never become
+# arguments). It is cut twice, both conservative by design:
+#   - inner: also at ( ) `, so commands nested in $(...) or bash -c "..." are
+#     inspected on their own;
+#   - outer: with each $(...) / `...` collapsed to $SUBST first, so the outer
+#     command keeps its arguments — `git push -f "$(git remote)" main`.
+SUBST='__MARUDA_SUBST__'
 
 # $@ = arguments after rm. True when recursive + forced on a catastrophic target.
 rm_is_catastrophic() {
@@ -50,9 +55,10 @@ rm_is_catastrophic() {
   ((recursive && force && target))
 }
 
-# $@ = arguments after push. True when forced (flag or +refspec) onto main/master.
+# $@ = arguments after push. True when forced (flag or +refspec) onto main/master,
+# or onto a ref only known at run time (a command substitution after the remote).
 push_forces_protected() {
-  local forced=0 protected=0 opts=1 a ref
+  local forced=0 protected=0 opts=1 positional=0 a ref
   for a in "$@"; do
     if ((opts)) && [[ "$a" == -- ]]; then opts=0; continue; fi
     if ((opts)) && [[ "$a" == --* ]]; then
@@ -63,28 +69,50 @@ push_forces_protected() {
       [[ "$a" == *f* ]] && forced=1
       continue
     fi
+    positional=$((positional + 1))
     ref="$a"
     [[ "$ref" == +* ]] && { forced=1; ref="${ref#+}"; }
     ref="${ref##*:}"
     ref="${ref#refs/heads/}"
     [[ "$ref" == main || "$ref" == master ]] && protected=1
+    ((positional > 1)) && [[ "$ref" == *"$SUBST"* ]] && protected=1
   done
   ((forced && protected))
 }
 
-while IFS= read -r segment; do
-  read -ra words <<<"$segment" || true
-  for ((i = 0; i < ${#words[@]}; i++)); do
-    w="${words[i]}"
-    if [[ "$w" == rm || "$w" == */rm ]] && rm_is_catastrophic "${words[@]:i+1}"; then
-      deny "Blocked by pre-bash-guard: recursive forced rm on /, ~, \$HOME or a bare glob. If this is intentional, ask the user to run it manually."
-    fi
-    if [[ "$w" == push ]] && ((i > 0)) && printf '%s\n' "${words[@]:0:i}" | grep -Eq '^(.*/)?git$' \
-      && push_forces_protected "${words[@]:i+1}"; then
-      deny "Blocked by pre-bash-guard: force push to main/master. If this is intentional, ask the user to run it manually."
-    fi
+# $1 = command text. Replaces each innermost $(...) / `...` with $SUBST until none is left.
+collapse_substitutions() {
+  local s="$1" prev
+  while :; do
+    prev="$s"
+    s=$(printf '%s\n' "$s" | sed -e "s/\\\$([^()]*)/$SUBST/g" -e "s/\`[^\`]*\`/$SUBST/g")
+    [[ "$s" == "$prev" ]] && break
   done
-done < <(printf '%s\n' "$cmd" | tr -d "\"'" | tr ';|&()`' '\n\n\n\n\n\n')
+  printf '%s\n' "$s"
+}
+
+# $1 = command text, $2 = extra separator characters. Denies on the first match.
+inspect_segments() {
+  local segment w i
+  local -a words
+  while IFS= read -r segment; do
+    read -ra words <<<"$segment" || true
+    for ((i = 0; i < ${#words[@]}; i++)); do
+      w="${words[i]}"
+      if [[ "$w" == rm || "$w" == */rm ]] && rm_is_catastrophic "${words[@]:i+1}"; then
+        deny "Blocked by pre-bash-guard: recursive forced rm on /, ~, \$HOME or a bare glob. If this is intentional, ask the user to run it manually."
+      fi
+      if [[ "$w" == push ]] && ((i > 0)) && printf '%s\n' "${words[@]:0:i}" | grep -Eq '^(.*/)?git$' \
+        && push_forces_protected "${words[@]:i+1}"; then
+        deny "Blocked by pre-bash-guard: force push to main/master (or to a ref resolved at run time). If this is intentional, ask the user to run it manually."
+      fi
+    done
+  done < <(printf '%s\n' "$1" | tr ";|&<>$2" '\n')
+}
+
+unquoted=$(printf '%s\n' "$cmd" | tr -d "\"'")
+inspect_segments "$unquoted" '()`'
+inspect_segments "$(collapse_substitutions "$unquoted")" ''
 
 deny_patterns=(
   # Filesystem / system
