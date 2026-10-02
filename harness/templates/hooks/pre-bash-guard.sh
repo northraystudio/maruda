@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # PreToolUse hook (matcher: Bash) — deny destructive or policy-breaking commands.
 # Exit 0 with no output = no opinion (normal permission flow applies).
+# Always exits 0: unparseable input is "no opinion", never a hook error.
 set -euo pipefail
 
 command -v jq >/dev/null 2>&1 || { cat >/dev/null; exit 0; }
 
 input=$(cat)
-cmd=$(echo "$input" | jq -r '.tool_input.command // empty')
+cmd=$(echo "$input" | jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 [[ -z "$cmd" ]] && exit 0
 
 deny() {
@@ -20,15 +21,75 @@ deny() {
   exit 0
 }
 
+# rm and git push are judged on their arguments, not by regex over the whole
+# string: option spelling (-rf / -fr / -r -f / --recursive) must not matter,
+# and a branch name that merely contains "main" must not match.
+#
+# Shell syntax is not fully parsed. Quotes are dropped and the command is cut
+# at ; | & ( ) ` and newlines, so commands nested in $(...) or bash -c "..."
+# are inspected too — conservative by design.
+
+# $@ = arguments after rm. True when recursive + forced on a catastrophic target.
+rm_is_catastrophic() {
+  local recursive=0 force=0 opts=1 target=0 a
+  for a in "$@"; do
+    if ((opts)) && [[ "$a" == -- ]]; then opts=0; continue; fi
+    if ((opts)) && [[ "$a" == --* ]]; then
+      case "$a" in --recursive) recursive=1 ;; --force) force=1 ;; esac
+      continue
+    fi
+    if ((opts)) && [[ "$a" == -?* ]]; then
+      [[ "$a" == *[rR]* ]] && recursive=1
+      [[ "$a" == *f* ]] && force=1
+      continue
+    fi
+    case "$a" in
+      / | '/*' | '~'* | '*'* | '$HOME'* | '${HOME}'*) target=1 ;;
+    esac
+  done
+  ((recursive && force && target))
+}
+
+# $@ = arguments after push. True when forced (flag or +refspec) onto main/master.
+push_forces_protected() {
+  local forced=0 protected=0 opts=1 a ref
+  for a in "$@"; do
+    if ((opts)) && [[ "$a" == -- ]]; then opts=0; continue; fi
+    if ((opts)) && [[ "$a" == --* ]]; then
+      case "$a" in --force | --force=* | --force-with-lease | --force-with-lease=*) forced=1 ;; esac
+      continue
+    fi
+    if ((opts)) && [[ "$a" == -?* ]]; then
+      [[ "$a" == *f* ]] && forced=1
+      continue
+    fi
+    ref="$a"
+    [[ "$ref" == +* ]] && { forced=1; ref="${ref#+}"; }
+    ref="${ref##*:}"
+    ref="${ref#refs/heads/}"
+    [[ "$ref" == main || "$ref" == master ]] && protected=1
+  done
+  ((forced && protected))
+}
+
+while IFS= read -r segment; do
+  read -ra words <<<"$segment" || true
+  for ((i = 0; i < ${#words[@]}; i++)); do
+    w="${words[i]}"
+    if [[ "$w" == rm || "$w" == */rm ]] && rm_is_catastrophic "${words[@]:i+1}"; then
+      deny "Blocked by pre-bash-guard: recursive forced rm on /, ~, \$HOME or a bare glob. If this is intentional, ask the user to run it manually."
+    fi
+    if [[ "$w" == push ]] && ((i > 0)) && printf '%s\n' "${words[@]:0:i}" | grep -Eq '^(.*/)?git$' \
+      && push_forces_protected "${words[@]:i+1}"; then
+      deny "Blocked by pre-bash-guard: force push to main/master. If this is intentional, ask the user to run it manually."
+    fi
+  done
+done < <(printf '%s\n' "$cmd" | tr -d "\"'" | tr ';|&()`' '\n\n\n\n\n\n')
+
 deny_patterns=(
   # Filesystem / system
-  'rm -rf +/( |$)'
-  'rm -rf +~'
-  'rm -rf +\*'
   'mkfs\.'
   ':\(\)\{ *:\|:& *\};:'
-  # Git history on shared branches
-  'git push[^|;&]*(--force|-f)[^|;&]*(main|master)'
   # Databases (irreversible, no WHERE-clause escape hatch)
   'DROP +DATABASE'
   'TRUNCATE +TABLE'
