@@ -75,8 +75,9 @@ push_forces_protected() {
     [[ "$ref" == +* ]] && { forced=1; ref="${ref#+}"; }
     ref="${ref##*:}"
     ref="${ref#refs/heads/}"
-    [[ "$ref" == main || "$ref" == master ]] && protected=1
     ((positional > 1)) && [[ "$ref" == *"$SUBST"* ]] && protected=1
+    ref=$(printf '%s' "$ref" | tr 'A-Z' 'a-z') # case-insensitive filesystems
+    [[ "$ref" == main || "$ref" == master ]] && protected=1
   done
   ((forced && protected))
 }
@@ -113,7 +114,7 @@ inspect_segments() {
       if [[ "$w" == rm || "$w" == */rm ]] && rm_is_catastrophic "${words[@]:i+1}"; then
         deny "Blocked by pre-bash-guard: recursive forced rm on /, ~, \$HOME or a bare glob. If this is intentional, ask the user to run it manually."
       fi
-      if [[ "$w" == push ]] && ((i > 0)) && printf '%s\n' "${words[@]:0:i}" | grep -Eq '^(.*/)?git$' \
+      if [[ "$w" == push ]] && ((i > 0)) && printf '%s\n' "${words[@]:0:i}" | grep -Eiq '^(.*/)?git$' \
         && push_forces_protected "${words[@]:i+1}"; then
         deny "Blocked by pre-bash-guard: force push to main/master (or to a ref resolved at run time). If this is intentional, ask the user to run it manually."
       fi
@@ -125,6 +126,29 @@ unquoted=$(printf '%s\n' "$cmd" | tr -d "\"'")
 inspect_segments "$(strip_redirections "$unquoted")" '()`'
 # Parens left after collapsing are subshell/grouping boundaries, so cut there too.
 inspect_segments "$(strip_redirections "$(collapse_substitutions "$unquoted")")" '()'
+
+# Floor: never weaker than the previous regex-only guard. Shell syntax has more
+# forms than the parser above models (brace expansion, separators inside
+# quotes, --force-with-lease=<ref>, ...), so the old patterns stay in force:
+#   - rm: always — they never produced false positives;
+#   - force push: for every segment that is not plain words. Only a segment the
+#     parser reads exactly may be allowed past the old pattern — that is what
+#     fixes `git push --force origin feat/domain-model`.
+legacy_rm_patterns=('rm -rf +/( |$)' 'rm -rf +~' 'rm -rf +\*')
+for p in "${legacy_rm_patterns[@]}"; do
+  if echo "$cmd" | grep -Eiq "$p"; then
+    deny "Blocked by pre-bash-guard: matched /$p/. If this is intentional, ask the user to run it manually."
+  fi
+done
+
+legacy_push_pattern='git push[^|;&]*(--force|-f)[^|;&]*(main|master)'
+plain_words='^[A-Za-z0-9 ./_:+@-]*$'
+while IFS= read -r segment; do
+  [[ "$segment" =~ $plain_words ]] && continue
+  if echo "$segment" | grep -Eiq "$legacy_push_pattern"; then
+    deny "Blocked by pre-bash-guard: force push to main/master (the command is not plain words, so it is judged conservatively). If this is intentional, ask the user to run it manually."
+  fi
+done < <(printf '%s\n' "$cmd" | tr ';|&' '\n')
 
 deny_patterns=(
   # Filesystem / system

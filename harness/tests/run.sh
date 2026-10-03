@@ -188,6 +188,14 @@ deny|git push --force origin $(git branch --show-current)
 deny|git push --force origin HEAD:`git branch --show-current`
 deny|(git push --force "$(git remote)" main)
 deny|(cd x && git push --force `git remote` HEAD:main 2>&1)
+deny|git push --force origin {main,develop}
+deny|git push --force origin {develop,main}
+deny|git push --force "https://host/x(y).git" main
+deny|git push --force-with-lease=main:abc123 origin
+deny|git push --force-with-lease=main origin
+deny|git push --force-with-lease=refs/heads/main:abc origin
+deny|GIT push -f origin MAIN
+deny|git push --force origin feat/x >main.log
 deny|git push --force origin >/dev/null main
 deny|git push --force origin 2>/dev/null main
 deny|git push --force origin &>/dev/null main
@@ -217,8 +225,8 @@ allowed|git push --force "$(git remote)" feat/x
 allowed|git push origin $(git branch --show-current)
 allowed|git push --force origin feat/x >/dev/null 2>&1
 allowed|rm -rf $(mktemp -d)
-allowed|git push --force origin feat/x >main.log
-allowed|git push --force origin feat/x 2> main
+allowed|git push --force-with-lease=feat/x:abc123 origin
+allowed|git push --follow-tags origin main
 allowed|rm -rf build >/dev/null 2>&1
 allowed|kubectl delete pod my-pod
 CASES
