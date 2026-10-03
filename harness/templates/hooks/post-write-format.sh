@@ -6,8 +6,14 @@ set -euo pipefail
 command -v jq >/dev/null 2>&1 || { cat >/dev/null; exit 0; }
 
 input=$(cat)
-file=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+file=$(echo "$input" | jq -r '.tool_input.file_path // empty' 2>/dev/null) || exit 0
 [[ -z "$file" || ! -f "$file" ]] && exit 0
+
+# Installed skills belong to their installer (npx skills / skills-lock.json),
+# not to this project's formatter.
+case "$file" in
+  .claude/skills/* | */.claude/skills/*) exit 0 ;;
+esac
 
 format_go() {
   if command -v goimports >/dev/null 2>&1; then

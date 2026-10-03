@@ -162,15 +162,97 @@ if command -v jq >/dev/null 2>&1; then
     if [[ "$(guard "$cmd")" == "$expect" ]]; then ok "guard: $expect '$cmd'"; else bad "guard: expected $expect for '$cmd'"; fi
   done <<'CASES'
 deny|rm -rf /
+deny|rm -fr /
+deny|rm -r -f /
+deny|rm -rf -- /
+deny|rm --recursive --force /
+deny|rm -Rf /*
+deny|rm -fr ~
+deny|rm -rf ~/projects
+deny|rm -rf $HOME
+deny|rm -rf *
+deny|sudo rm -rf /
+deny|cd /tmp && rm -fr /
+deny|bash -c "rm -fr /"
+deny|echo $(rm -rf ~)
 deny|git push -f origin main
+deny|git push origin +main
+deny|git push --force origin refs/heads/main
+deny|git push --force-with-lease origin HEAD:main
+deny|git -C repo push -uf origin master
+deny|git push --force origin main>/dev/null
+deny|git push --force origin main 2>&1
+deny|git push --force "$(git remote)" main
+deny|git push --force `git remote` main
+deny|git push --force origin $(git branch --show-current)
+deny|git push --force origin HEAD:`git branch --show-current`
+deny|(git push --force "$(git remote)" main)
+deny|(cd x && git push --force `git remote` HEAD:main 2>&1)
+deny|git push --force origin {main,develop}
+deny|git push --force origin {develop,main}
+deny|git push --force "https://host/x(y).git" main
+deny|git push --force-with-lease=main:abc123 origin
+deny|git push --force-with-lease=main origin
+deny|git push --force-with-lease=refs/heads/main:abc origin
+deny|GIT push -f origin MAIN
+deny|git push --force origin feat/x >main.log
+deny|git push --force origin >/dev/null main
+deny|git push --force origin 2>/dev/null main
+deny|git push --force origin &>/dev/null main
+deny|git push --force >/dev/null origin main
+deny|git push --force origin 2>&1 main
+deny|git push --force origin < /dev/null main
+deny|rm -rf />/dev/null
+deny|rm -rf >/dev/null /
+deny|rm -rf 2>&1 /
+deny|rm -rf 2> /dev/null ~
+deny|rm -rf $(echo x) /
+deny|(cd /tmp; rm -rf /)
 deny|terraform destroy
 deny|docker system prune -af
 deny|echo x >> .env
 allowed|terraform plan
 allowed|rm -rf node_modules
+allowed|rm -rf ./build
+allowed|rm -f /tmp/x.log
+allowed|rm -r ~/scratch-no-force
 allowed|git push origin feature/x
+allowed|git push origin main
+allowed|git push --force origin feat/domain-model
+allowed|git push --force-with-lease origin feat/maintenance-fix
+allowed|git push origin +feat/x
+allowed|git push --force "$(git remote)" feat/x
+allowed|git push origin $(git branch --show-current)
+allowed|git push --force origin feat/x >/dev/null 2>&1
+allowed|rm -rf $(mktemp -d)
+allowed|git push --force-with-lease=feat/x:abc123 origin
+allowed|git push --follow-tags origin main
+allowed|rm -rf build >/dev/null 2>&1
 allowed|kubectl delete pod my-pod
 CASES
+fi
+
+# ── 8b. Hooks never fail on unparseable input; Stop output shape ──
+if command -v jq >/dev/null 2>&1; then
+  for h in pre-bash-guard.sh post-write-format.sh; do
+    check "broken input: $h exits 0" "echo 'not json' | bash '$HOOKS/$h'"
+  done
+  check "stop: systemMessage at top level" \
+    "echo '{}' | bash '$HOOKS/stop-suggest-cycle.sh' | jq -e '(.systemMessage | type == \"string\") and (has(\"hookSpecificOutput\") | not)'"
+fi
+
+# ── 8c. Format hook leaves installed skills alone ──
+mkdir -p "$WORK/fmt/bin" "$WORK/fmt/proj/.claude/skills/x"
+printf '#!/usr/bin/env bash\necho formatted >>"%s/fmt/calls"\n' "$WORK" >"$WORK/fmt/bin/prettier"
+chmod +x "$WORK/fmt/bin/prettier"
+printf '# x\n' >"$WORK/fmt/proj/.claude/skills/x/SKILL.md"
+printf '# y\n' >"$WORK/fmt/proj/README.md"
+fmt() { jq -n --arg f "$1" '{tool_input:{file_path:$f}}' | PATH="$WORK/fmt/bin:$PATH" CLAUDE_PROJECT_DIR="$WORK/fmt/proj" bash "$HOOKS/post-write-format.sh"; }
+if command -v jq >/dev/null 2>&1; then
+  fmt "$WORK/fmt/proj/.claude/skills/x/SKILL.md"
+  check "format: installed SKILL.md skipped" "[[ ! -f '$WORK/fmt/calls' ]]"
+  fmt "$WORK/fmt/proj/README.md"
+  check "format: project markdown still formatted" "[[ -f '$WORK/fmt/calls' ]]"
 fi
 
 # ── 8.5 Drift → *.new proposals; --force clears them ──
