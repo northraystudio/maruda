@@ -186,7 +186,18 @@ deny|git push --force "$(git remote)" main
 deny|git push --force `git remote` main
 deny|git push --force origin $(git branch --show-current)
 deny|git push --force origin HEAD:`git branch --show-current`
+deny|(git push --force "$(git remote)" main)
+deny|(cd x && git push --force `git remote` HEAD:main 2>&1)
+deny|git push --force origin >/dev/null main
+deny|git push --force origin 2>/dev/null main
+deny|git push --force origin &>/dev/null main
+deny|git push --force >/dev/null origin main
+deny|git push --force origin 2>&1 main
+deny|git push --force origin < /dev/null main
 deny|rm -rf />/dev/null
+deny|rm -rf >/dev/null /
+deny|rm -rf 2>&1 /
+deny|rm -rf 2> /dev/null ~
 deny|rm -rf $(echo x) /
 deny|(cd /tmp; rm -rf /)
 deny|terraform destroy
@@ -206,6 +217,9 @@ allowed|git push --force "$(git remote)" feat/x
 allowed|git push origin $(git branch --show-current)
 allowed|git push --force origin feat/x >/dev/null 2>&1
 allowed|rm -rf $(mktemp -d)
+allowed|git push --force origin feat/x >main.log
+allowed|git push --force origin feat/x 2> main
+allowed|rm -rf build >/dev/null 2>&1
 allowed|kubectl delete pod my-pod
 CASES
 fi

@@ -25,9 +25,10 @@ deny() {
 # string: option spelling (-rf / -fr / -r -f / --recursive) must not matter,
 # and a branch name that merely contains "main" must not match.
 #
-# Shell syntax is not fully parsed. Quotes are dropped and the command is cut
-# into segments at ; | & < > and newlines (redirect targets never become
-# arguments). It is cut twice, both conservative by design:
+# Shell syntax is not fully parsed. Quotes are dropped, redirections (operator
+# + operand) are removed without cutting the command — `push -f origin
+# >/dev/null main` keeps main as an argument — and the command is cut into
+# segments at ; | & and newlines. It is cut twice, both conservative by design:
 #   - inner: also at ( ) `, so commands nested in $(...) or bash -c "..." are
 #     inspected on their own;
 #   - outer: with each $(...) / `...` collapsed to $SUBST first, so the outer
@@ -91,6 +92,16 @@ collapse_substitutions() {
   printf '%s\n' "$s"
 }
 
+# $1 = command text. Removes each redirection (optional fd number, operator,
+# operand) and leaves the surrounding arguments in place.
+strip_redirections() {
+  local op='(&>>|&>|>>|>[|]|>&|<<<|<<-|<<|<&|<>|>|<)'
+  local operand='[[:space:]]*[^[:space:];|&<>()]*'
+  printf '%s\n' "$1" | sed -E \
+    -e "s/(^|[[:space:]])[0-9]+$op$operand/\\1 /g" \
+    -e "s/$op$operand/ /g"
+}
+
 # $1 = command text, $2 = extra separator characters. Denies on the first match.
 inspect_segments() {
   local segment w i
@@ -107,12 +118,13 @@ inspect_segments() {
         deny "Blocked by pre-bash-guard: force push to main/master (or to a ref resolved at run time). If this is intentional, ask the user to run it manually."
       fi
     done
-  done < <(printf '%s\n' "$1" | tr ";|&<>$2" '\n')
+  done < <(printf '%s\n' "$1" | tr ";|&$2" '\n')
 }
 
 unquoted=$(printf '%s\n' "$cmd" | tr -d "\"'")
-inspect_segments "$unquoted" '()`'
-inspect_segments "$(collapse_substitutions "$unquoted")" ''
+inspect_segments "$(strip_redirections "$unquoted")" '()`'
+# Parens left after collapsing are subshell/grouping boundaries, so cut there too.
+inspect_segments "$(strip_redirections "$(collapse_substitutions "$unquoted")")" '()'
 
 deny_patterns=(
   # Filesystem / system
