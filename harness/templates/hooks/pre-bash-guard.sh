@@ -74,9 +74,12 @@ push_forces_protected() {
     ref="$a"
     [[ "$ref" == +* ]] && { forced=1; ref="${ref#+}"; }
     ref="${ref##*:}"
-    ref="${ref#refs/heads/}"
     ((positional > 1)) && [[ "$ref" == *"$SUBST"* ]] && protected=1
     ref=$(printf '%s' "$ref" | tr 'A-Z' 'a-z') # case-insensitive filesystems
+    # Git resolves a short destination against refs/: main, heads/main and
+    # refs/heads/main all name the branch (tags/main or feat/main do not).
+    ref="${ref#refs/}"
+    ref="${ref#heads/}"
     [[ "$ref" == main || "$ref" == master ]] && protected=1
   done
   ((forced && protected))

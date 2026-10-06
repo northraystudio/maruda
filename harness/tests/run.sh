@@ -195,6 +195,11 @@ deny|git push --force-with-lease=main:abc123 origin
 deny|git push --force-with-lease=main origin
 deny|git push --force-with-lease=refs/heads/main:abc origin
 deny|GIT push -f origin MAIN
+deny|git push --force origin HEAD:heads/main
+deny|git push --force origin heads/main
+deny|git push --force origin +HEAD:heads/master
+deny|git push --force origin HEAD:Heads/Main
+deny|git push --force origin HEAD:refs/heads/master
 deny|git push --force origin feat/x >main.log
 deny|git push --force origin >/dev/null main
 deny|git push --force origin 2>/dev/null main
@@ -227,6 +232,8 @@ allowed|git push --force origin feat/x >/dev/null 2>&1
 allowed|rm -rf $(mktemp -d)
 allowed|git push --force-with-lease=feat/x:abc123 origin
 allowed|git push --follow-tags origin main
+allowed|git push --force origin feat/main
+allowed|git push --force origin HEAD:tags/main
 allowed|rm -rf build >/dev/null 2>&1
 allowed|kubectl delete pod my-pod
 CASES
