@@ -237,6 +237,16 @@ if command -v jq >/dev/null 2>&1; then
   for h in pre-bash-guard.sh post-write-format.sh; do
     check "broken input: $h exits 0" "echo 'not json' | bash '$HOOKS/$h'"
   done
+  # The guard must not depend on temp files: with file writes failing
+  # (ulimit -f 0 breaks here-strings/heredocs), denials must still hold.
+  guard_no_tmpfile() {
+    printf '{"tool_input":{"command":%s}}' "$(printf '%s' "$1" | jq -Rs .)" \
+      | bash -c 'trap "" XFSZ; ulimit -f 0; exec bash "$1"' _ "$HOOKS/pre-bash-guard.sh" 2>/dev/null \
+      | jq -r '.hookSpecificOutput.permissionDecision // "allowed"' 2>/dev/null
+  }
+  for c in 'git push -f origin main' 'rm -fr /'; do
+    if [[ "$(guard_no_tmpfile "$c")" == deny ]]; then ok "no temp file: deny '$c'"; else bad "no temp file: expected deny for '$c'"; fi
+  done
   check "stop: systemMessage at top level" \
     "echo '{}' | bash '$HOOKS/stop-suggest-cycle.sh' | jq -e '(.systemMessage | type == \"string\") and (has(\"hookSpecificOutput\") | not)'"
 fi

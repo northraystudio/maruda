@@ -108,7 +108,14 @@ inspect_segments() {
   local segment w i
   local -a words
   while IFS= read -r segment; do
-    read -ra words <<<"$segment" || true
+    # Split into words by plain assignment with globbing off. Not `read -ra
+    # <<<`: a here-string needs a temp file, and when one cannot be created the
+    # read fails, the parser sees nothing, and plain-word segments — exempt
+    # from the legacy floor below — would slip through unjudged.
+    set -f
+    # shellcheck disable=SC2206 # word splitting is the point; globbing is off
+    words=($segment)
+    set +f
     for ((i = 0; i < ${#words[@]}; i++)); do
       w="${words[i]}"
       if [[ "$w" == rm || "$w" == */rm ]] && rm_is_catastrophic "${words[@]:i+1}"; then
