@@ -10,6 +10,13 @@
   within the plan's impact scope. Pre-existing findings → `report-to-issues`
   after user approval — never fixed in the same PR.
 - Never relax tests, types, or thresholds to greenwash a check.
+- **Decision ladder** — before writing code, check from the top and stop at the
+  first rung that is enough: needed at all → already in this codebase → standard
+  library → platform feature → installed dependency → one line → smallest thing
+  that works. The agreed plan records it as `採用した段`.
+- No rung cuts security boundaries, data-loss protection, authorization, input
+  validation, error handling, or accessibility. Strength is `full` by default;
+  a project that changes it says so in CLAUDE.md.
 - Living docs anytime: `/maruda:spec-doc`. Trends: `/maruda:progress-dashboard`.
 
 ## Flow — one Issue or several

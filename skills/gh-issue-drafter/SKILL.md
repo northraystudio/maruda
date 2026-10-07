@@ -61,16 +61,19 @@ it for the user to approve or edit. The user's job shrinks from *writing* to *ap
 
 - **Done (完了条件)** — 1–3 conditions, each phrased so a machine or a fresh reviewer can
   judge it. Prefer conditions that map onto an existing test, lint, type check, or spec
-  assertion. This becomes the contract that `gh-issue-planner` plans against and that the
+  assertion. Write each one as **observable behavior**, never as a means ("add X",
+  "introduce a Y class") — a means in the Done pre-decides the implementation and stops
+  the planner from finding that something cheaper is enough. This becomes the contract that `gh-issue-planner` plans against and that the
   post-implementation review checks for *consistency* (did the implementation match the
   declared Done?).
 - **Out of scope (触らない範囲)** — the single highest-leverage field. List what must not
   change, what boundaries must not be crossed, and any "works but kills reusability"
   traps (e.g. do not break an existing provider/abstraction layer). This is what lets the
   planner-stage review reject a wrong *direction* before any code is written.
-- **Design constraints (設計方針, optional)** — non-functional intent the author holds but
+- **Design constraints (設計方針)** — non-functional intent the author holds but
   rarely writes down: reusability/horizontal-deployment expectations, layering rules,
-  performance or security posture. Leave empty if none; when present it sharpens the
+  performance or security posture. Always include the decision-ladder line below as the
+  default; add the author's own constraints after it when present — they sharpen the
   planner's direction review.
 
 Present the draft in the user's language:
@@ -88,8 +91,9 @@ Present the draft in the user's language:
 ### 触らない範囲 (Out of scope)
 - <what must not change / boundaries to preserve>
 
-### 設計方針 (Design constraints) — optional
-- <non-functional intent, or omit this section>
+### 設計方針 (Design constraints)
+- 判断梯子: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りた段で止める
+- <the author's non-functional intent, if any>
 
 ---
 提案です。このまま起票して良いですか？ 修正があれば指定してください。
@@ -147,7 +151,8 @@ gh issue create \
 
 ## 設計方針
 
-- <design constraints, or: なし>
+- 判断梯子: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りた段で止める
+- <the author's design constraints, if any>
 
 ---
 <!-- gh-issue-drafter:scoped-issue -->
@@ -168,6 +173,7 @@ Report the created Issue number and URL back to the user, and offer the handoff:
   Done / Out-of-scope / constraints. Never push writing work back onto the author.
 - **Done must be checkable.** A Done condition that can't be judged by a test, a check, or
   a fresh reviewer is a weak contract. Prefer conditions that map onto existing CI checks.
+  Describe behavior, not means.
 - **Out of scope is the highest-leverage field.** Most hand-written Issues omit it, and
   its absence is what lets an agent quietly cross boundaries. Always propose one.
 - **Approval, not authorship.** The user approves or edits a draft — this keeps their
