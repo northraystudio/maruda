@@ -47,6 +47,10 @@ sections as binding input to the plan:
 Do not re-ask the user about scope that these sections already answer — raise open
 questions only for genuinely new information discovered during investigation.
 
+**Epics are not planned.** If the body contains `<!-- gh-issue-drafter:epic -->`, its Done
+conditions live in the children. Do not
+produce a plan for it — list its sub-issues (Step 1.5) and offer to plan those instead.
+
 ### Step 1.5: Read the dependencies
 
 Dependencies and parent/child links live on the Issue, not in the plan. Read the current
@@ -95,6 +99,22 @@ Focus on:
 - Files and functions directly mentioned or implied in the issue
 - Callers / consumers of affected code
 - Tests covering the affected area
+
+### Step 3.5: Size check — a safety net
+
+The drafter checks size before filing, but only from the intent; the investigation is
+where size actually shows. If the impact scope turns out too large for one Issue — the
+Done conditions would be covered by unrelated changes, or the parts could ship apart —
+**stop before writing a plan** and offer the same three choices as `gh-issue-drafter`
+Step 2.5, recommended one first:
+
+- **a. Keep one Issue** — continue to Step 4
+- **b. Split into independent Issues** — the parts may ship separately
+- **c. Epic + sub-issues** — the parts should ship together (`gh-batch-runner`)
+
+For b or c, hand the filing back to `gh-issue-drafter`, passing what the investigation
+found as the rough intent. **The planner never creates Issues itself** — drafting and
+filing are the drafter's job. Plan the new Issues once they exist.
 
 ### Step 4: Present the Response Plan
 
