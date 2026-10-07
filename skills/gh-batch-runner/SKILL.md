@@ -106,7 +106,8 @@ verification once more against the **integration branch** as baseline:
 3. Classify findings against the integration branch:
    - **regression of the batch** — passes on the integration branch, fails on the epic
      branch → fix it here, under the usual limits (≤3 iterations, inside the union of the
-     members' agreed 影響範囲)
+     members' agreed 影響範囲 (Impact Scope) — found by meaning, not by the Japanese heading,
+     since each plan is written in its author's language)
    - **pre-existing** — already fails on the integration branch → hand to
      `report-to-issues` after the user approves; never fixed in this PR
 4. A regression that cannot be attributed to a single member is still the batch's: fix it

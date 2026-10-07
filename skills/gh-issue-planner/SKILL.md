@@ -37,7 +37,9 @@ Extract from the response:
 
 **Pre-scoped Issues:** if the body contains `<!-- gh-issue-drafter:scoped-issue -->`,
 the Issue was drafted via `gh-issue-drafter` and its scope is author-approved. Treat its
-sections as binding input to the plan:
+sections as binding input to the plan. The Issue is written in the user's language, so
+find each section by meaning (e.g. Done / Out of scope / Design constraints), not by the
+Japanese heading — those are only the template's names:
 - **完了条件 (Done)** — the contract the plan must satisfy; every condition must be
   covered by an implementation step or a test in the plan
 - **触らない範囲 (Out of scope)** — hard boundaries; reject any plan direction that
