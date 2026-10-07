@@ -52,7 +52,7 @@ Markdown ファイルです。導入すると、Claude Code が関連する依�
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Semgrep を使った OWASP ベースの攻撃的セキュリティ監査。深刻度と修正方針付きの読み取り専用レポート |
 | [data-validation](skills/data-validation/SKILL.md) | プロジェクト自身のフィクスチャ、または明示的に設定した非本番接続からデータを読み、件数・NULL 率・分布・一意性・参照整合性・書式を検証する。読み取り専用、JSON は出さない |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | 評価・監査レポートを読み、対話的に選んだ項目を `gh` CLI で GitHub Issue に登録する |
-| [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | ざっくりした要望を、完了条件・触らない範囲・設計方針まで揃った Issue に仕立てる |
+| [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | ざっくりした要望を、完了条件・触らない範囲・設計方針まで揃った Issue に仕立てる。要望が大きすぎるときは、独立した Issue への分割か、Epic と sub-issue での起票を提案する |
 | [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Issue を取得してコードを調査し、対応方針・影響範囲・実装手順を合意プランとしてコメントする。実装はしない |
 | [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | 合意プランのある Issue を実装し、テストと診断を再実行して、自分の変更が壊した分だけを自律的に直し、PR を出す |
 | [gh-batch-runner](skills/gh-batch-runner/SKILL.md) | 複数の Issue を1リリースとしてまとめる。Epic Issue がメンバーを持ち、共有の `epic/**` ブランチに Issue ごと1コミットで積み、全体を検証して PR は1本 |

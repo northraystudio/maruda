@@ -1,6 +1,6 @@
 ---
 name: gh-issue-drafter
-description: "Turn a rough, hand-written intent into a well-scoped GitHub Issue before planning starts. Takes a loose 'what I want' from the user, proposes the missing structure (Done definition, Out of scope, Design constraints), gets the user's approval, and creates the Issue via the gh CLI with a scoped-issue marker so gh-issue-planner can pick it up. This is the human-authored counterpart to report-to-issues (which registers machine-generated findings). Use when the user wants to file a new Issue from a rough idea, is about to write an Issue by hand, or asks to turn a note/thought into an Issue. Triggers include requests like Issueを起こして / Issueを作って / ざっくり書くのでIssueにして, 'draft an issue', 'create an issue for', 'turn this into an issue', 'file an issue'. Does NOT plan or implement — hand off to gh-issue-planner for the response plan, then gh-issue-resolver for implementation."
+description: "Turn a rough, hand-written intent into a well-scoped GitHub Issue before planning starts. Takes a loose 'what I want' from the user, proposes the missing structure (Done definition, Out of scope, Design constraints), gets the user's approval, and creates the Issue via the gh CLI with a scoped-issue marker so gh-issue-planner can pick it up. When the intent is too large for one Issue, it proposes splitting it into independent Issues or an Epic with sub-issues. This is the human-authored counterpart to report-to-issues (which registers machine-generated findings). Use when the user wants to file a new Issue from a rough idea, is about to write an Issue by hand, or asks to turn a note/thought into an Issue. Triggers include requests like Issueを起こして / Issueを作って / ざっくり書くのでIssueにして, 'draft an issue', 'create an issue for', 'turn this into an issue', 'file an issue'. Does NOT plan or implement — hand off to gh-issue-planner for the response plan, then gh-issue-resolver for implementation."
 ---
 
 # GitHub Issue Drafter
@@ -26,7 +26,8 @@ once the Issue exists.
 If the user's input already contains a clear Done definition and scope (e.g. they pasted
 a fully-formed Issue, or a `report-to-issues` output), do not re-interrogate them — just
 confirm and file. The goal is to fill gaps, not to add ceremony to Issues that are
-already well-formed.
+already well-formed. The size check (Step 2.5) follows the same rule: no signal, no
+question.
 
 ## Workflow
 
@@ -53,6 +54,33 @@ signal is enough.
 | add, support, new, want | Feature | `feature` | new behavior is exercised by a test |
 | clean up, restructure, extract, rename | Refactor | `refactor` | behavior unchanged, tests still green |
 | doc, readme, explain | Docs | `docs` | the doc reflects current code |
+
+### Step 2.5: Size check
+
+Judge the size from the intent and your draft only — do not read code (*Stay in your
+lane*). Consider splitting when any of these signals is present:
+
+- the Done conditions do not fit in three
+- the Done conditions are independent of each other
+- the types are mixed (e.g. feature + refactor)
+- Out of scope cannot be written, or is too broad to mean anything
+- the What lists several independent goals
+
+**No signal → go straight to Step 3 and ask nothing.** With a signal, name the signals
+you saw and offer three choices as a draft, recommended one first, so the user only
+approves:
+
+| Choice | When | Result |
+|---|---|---|
+| **a. Keep one Issue** | Not big enough to be worth splitting | Continue with Step 3 as usual |
+| **b. Split into independent Issues** | The parts may ship separately | Several scoped Issues, no Epic |
+| **c. Epic + sub-issues** | The parts should ship together | An Epic holding scoped sub-issues — the entry point to `gh-batch-runner` |
+
+Size alone never makes an Epic. `gh-batch-runner` treats an Epic as Issues that **ship
+together**, so choose c only for that; a large request whose parts ship separately is b.
+
+For b and c, draft every child Issue in the Step 3 format (やること / 完了条件 /
+触らない範囲 / 設計方針) and present them all at once — one approval files them all.
 
 ### Step 3: Propose the missing structure
 
@@ -125,6 +153,7 @@ gh label create "<label>" --color "<hex>"
 | `feature` | `#a2eeef` |
 | `refactor` | `#cfd3d7` |
 | `docs` | `#0075ca` |
+| `epic` | `#3e4b9e` |
 
 ### Step 6: Create the Issue
 
@@ -167,6 +196,49 @@ Report the created Issue number and URL back to the user, and offer the handoff:
 
 > Issue #<n> を起票しました。続けて `gh-issue-planner` で対応方針を立てますか？
 
+### Step 6.5: Several Issues (choices b and c)
+
+**b — independent Issues.** Create each child exactly as in Step 6, then hand off:
+
+> Issue #<n1>, #<n2> を起票しました。それぞれ `gh-issue-planner` で対応方針を立てますか？
+
+**c — Epic + sub-issues.** Create each child as in Step 6 (scoped-issue marker and all),
+then the Epic. The Epic uses the same label and title as `gh-batch-runner` Step 1, but a
+marker of its own: it holds the overall goal and the member list only — the Done
+conditions live in the children.
+
+```bash
+gh issue create --title "Epic: <what ships together>" --label epic --body "$(cat <<'EOF'
+## 目的
+
+<the overall goal, in one or two sentences>
+
+## 子 Issue
+
+- #<n1> <title>
+- #<n2> <title>
+
+依存順は gh-issue-planner で確定する。
+
+---
+<!-- gh-issue-drafter:epic -->
+*Generated by `gh-issue-drafter`. Membership is the sub-issue list; plan the child Issues, not this one.*
+EOF
+)"
+```
+
+Attach each child exactly as `gh-batch-runner` does — the REST **integer id**, with `-F`:
+
+```bash
+sub_id=$(gh api repos/{owner}/{repo}/issues/<child-number> --jq .id)
+gh api -X POST repos/{owner}/{repo}/issues/<epic-number>/sub_issues -F sub_issue_id="$sub_id"
+```
+
+Record `blocked_by` only for a dependency the user stated, or a tentative one the user
+approved — otherwise leave it to `gh-issue-planner`. Then hand off:
+
+> Epic #<e>（子 Issue: #<n1>, #<n2>）を起票しました。子 Issue をそれぞれ `gh-issue-planner` で計画してから、`gh-batch-runner` に Epic #<e> を渡してください。
+
 ## Key Principles
 
 - **Fill gaps, don't add ceremony.** The author writes a loose *What*; the skill supplies
@@ -174,6 +246,9 @@ Report the created Issue number and URL back to the user, and offer the handoff:
 - **Done must be checkable.** A Done condition that can't be judged by a test, a check, or
   a fresh reviewer is a weak contract. Prefer conditions that map onto existing CI checks.
   Describe behavior, not means.
+- **Split only on a signal, Epic only to ship together.** A large intent squeezed into one
+  Issue blurs its Done and Out of scope; but splitting is offered, never imposed, and an
+  Epic means "these ship together", not "this is big".
 - **Out of scope is the highest-leverage field.** Most hand-written Issues omit it, and
   its absence is what lets an agent quietly cross boundaries. Always propose one.
 - **Approval, not authorship.** The user approves or edits a draft — this keeps their
