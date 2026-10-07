@@ -99,7 +99,7 @@ Focus on:
 ### Step 4: Present the Response Plan
 
 Before writing the plan, walk the **decision ladder** from the top and stop at the first
-rung that is enough. The rung you stopped at is the plan's 採用した段:
+rung that is enough. The rung you stopped at goes into the plan's どこまで作るか section:
 
 1. Is it needed at all? (If not, propose closing the Issue instead of planning it)
 2. Does this codebase already have it?
@@ -111,7 +111,7 @@ rung that is enough. The rung you stopped at is the plan's 採用した段:
 
 Whichever rung you pick, never cut security boundaries, data-loss protection,
 authorization, input validation, error handling, or accessibility — list what the plan
-keeps under 残すもの. The strength is `full` by default; a project that wants a
+keeps under 削らないもの. The strength is `full` by default; a project that wants a
 different one says so in its CLAUDE.md.
 
 Present the following structured plan to the user in their preferred language:
@@ -122,10 +122,10 @@ Present the following structured plan to the user in their preferred language:
 ### 対応方針 (Approach)
 <What will be done and why — 2-4 sentences>
 
-### 採用した段 (Ladder rung)
-- 段: <1–7>（<why this rung is enough>）
-- 却下したもの: <higher-cost options considered and dropped>
-- 残すもの: <safety properties kept regardless of the rung>
+### どこまで作るか (How far to build)
+- 結論: <what will be built>（判断梯子の<1–7>段目: <why this rung is enough>）
+- 作らないもの: <higher-cost options considered and dropped>
+- 削らないもの: <safety properties kept regardless of the rung>
 
 ### 影響範囲 (Impact Scope)
 - **変更対象ファイル**: list of files to modify
@@ -145,7 +145,7 @@ Present the following structured plan to the user in their preferred language:
 
 - If there are open questions, **ask the user before proceeding**
 - Pick the rung only after reading the related code (Step 3). **If you cannot fill in
-  採用した段, do not post** — ask the user instead
+  どこまで作るか, do not post** — ask the user instead
 - Adjust the plan based on feedback
 - Once the user explicitly confirms, proceed to Step 6
 
@@ -159,11 +159,11 @@ gh issue comment <id> --body "$(cat <<'EOF'
 
 <agreed approach>
 
-## 採用した段
+## どこまで作るか
 
-- 段: <1–7>（<why this rung is enough>）
-- 却下したもの: <options dropped>
-- 残すもの: <safety properties kept>
+- 結論: <what will be built>（判断梯子の<1–7>段目: <why this rung is enough>）
+- 作らないもの: <options dropped>
+- 削らないもの: <safety properties kept>
 
 ## 影響範囲
 
@@ -211,7 +211,7 @@ This completes the planner workflow. If implementation is required, hand off to 
 
 - **Never post the comment without user confirmation** when open questions exist
 - **One agreed-plan comment per Issue**, even when several Issues are planned together
-- **Every plan names its 採用した段** — the first rung of the decision ladder, from the top, that is enough
+- **Every plan states どこまで作るか** — stopping at the first rung of the decision ladder, from the top, that is enough
 - Record dependencies on the Issue (`blocked_by` / sub-issues), never only in prose
 - Keep the plan concise — avoid over-engineering
 - If the issue is vague, ask one focused clarifying question rather than multiple at once

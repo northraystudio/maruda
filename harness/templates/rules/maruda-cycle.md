@@ -13,7 +13,7 @@
 - **Decision ladder** — before writing code, check from the top and stop at the
   first rung that is enough: needed at all → already in this codebase → standard
   library → platform feature → installed dependency → one line → smallest thing
-  that works. The agreed plan records it as `採用した段`.
+  that works. The agreed plan records it under `どこまで作るか`.
 - No rung cuts security boundaries, data-loss protection, authorization, input
   validation, error handling, or accessibility. Strength is `full` by default;
   a project that changes it says so in CLAUDE.md.
