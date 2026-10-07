@@ -29,7 +29,9 @@ From the `comments` array:
 2. Treat that comment as the **agreed plan** and extract the 対応方針 / どこまで作るか / 影響範囲 / 実装方法 sections.
 3. If no such comment exists, abort with a message asking the user to run `gh-issue-planner` first.
 4. If the plan has no どこまで作るか section (an older agreed plan), do not guess one — ask the
-   user to re-run `gh-issue-planner` so how far to build is agreed first.
+   user to re-run `gh-issue-planner` so how far to build is agreed first. The plan is written
+   in the user's language, so look for the section by meaning (e.g. "How far to build"), not
+   by the Japanese heading string.
 
 ### Step 2: Branch and Worktree Setup
 
