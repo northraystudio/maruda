@@ -72,7 +72,7 @@ it for the user to approve or edit. The user's job shrinks from *writing* to *ap
   planner-stage review reject a wrong *direction* before any code is written.
 - **Design constraints (設計方針)** — non-functional intent the author holds but
   rarely writes down: reusability/horizontal-deployment expectations, layering rules,
-  performance or security posture. Always include the decision-ladder line below as the
+  performance or security posture. Always include the 作る前の確認 (check before building) line below as the
   default; add the author's own constraints after it when present — they sharpen the
   planner's direction review.
 
@@ -92,7 +92,7 @@ Present the draft in the user's language:
 - <what must not change / boundaries to preserve>
 
 ### 設計方針 (Design constraints)
-- 判断梯子: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りた段で止める
+- 作る前の確認: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りたところで止める
 - <the author's non-functional intent, if any>
 
 ---
@@ -151,7 +151,7 @@ gh issue create \
 
 ## 設計方針
 
-- 判断梯子: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りた段で止める
+- 作る前の確認: 要るか → 既にあるか → 標準ライブラリ → プラットフォーム → 既存の依存 → 1行 → 最小の実装、の順に確かめ、足りたところで止める
 - <the author's design constraints, if any>
 
 ---

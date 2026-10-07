@@ -29,7 +29,7 @@ From the `comments` array:
 2. Treat that comment as the **agreed plan** and extract the 対応方針 / どこまで作るか / 影響範囲 / 実装方法 sections.
 3. If no such comment exists, abort with a message asking the user to run `gh-issue-planner` first.
 4. If the plan has no どこまで作るか section (an older agreed plan), do not guess one — ask the
-   user to re-run `gh-issue-planner` so the rung is agreed first.
+   user to re-run `gh-issue-planner` so how far to build is agreed first.
 
 ### Step 2: Branch and Worktree Setup
 
@@ -61,13 +61,13 @@ All implementation work (Steps 3–4) is performed inside the worktree directory
 ### Step 3: Implementation
 
 Before writing any code, check the agreed どこまで作るか against what you now see in the
-worktree. If a rung above it turns out to be enough (the codebase already has it, the
+worktree. If an earlier item of the check before building turns out to be enough (the codebase already has it, the
 standard library covers it, one line does it), **write no code and return to
-`gh-issue-planner`** with what you found — the rung is part of the agreement, so a cheaper
-rung is a plan change, not an implementation shortcut.
+`gh-issue-planner`** with what you found — どこまで作るか is part of the agreement, so building
+less is a plan change, not an implementation shortcut.
 
 Apply the changes defined in the agreed plan inside the worktree directory. Follow these rules:
-- Keep everything listed under 削らないもの, whichever rung was agreed
+- Keep everything listed under 削らないもの, however little is built
 - Make minimal, focused changes — do not scope-creep beyond the agreed plan
 - Run existing tests after each logical change to catch regressions early
 - Add or update tests to cover the changed behavior
