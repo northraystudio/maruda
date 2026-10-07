@@ -6,10 +6,8 @@ set -euo pipefail
 cat >/dev/null # drain stdin
 command -v jq >/dev/null 2>&1 || exit 0
 
+# systemMessage is a top-level field: Stop defines no hookSpecificOutput.
 jq -n '{
-  hookSpecificOutput: {
-    hookEventName: "Stop",
-    systemMessage: "[maruda] If code changed this session: consider /maruda:software-evaluation on the diff, or continue Plan → Resolve if an issue is in flight."
-  }
+  systemMessage: "[maruda] If code changed this session: consider /maruda:software-evaluation on the diff, or continue Plan → Resolve if an issue is in flight."
 }'
 exit 0
