@@ -74,7 +74,8 @@ Markdown ファイルです。導入すると、Claude Code が関連する依�
 | **フラグより質問に答えたい** | 先にスキルを入れて、Claude Code で `/maruda:setup` |
 | **ゲートを実際に効かせたい** | ワンライナーに `--protect` を足す（`gh` の admin 権限が必要） |
 | **AI の PR レビューを足したい** | ワンライナーに `--pr-agent`、そのあと `OPENAI_KEY` をリポジトリシークレットに登録する。助言のみで、必須チェックにはしない |
-| **最新に更新したい** | 同じ導入コマンドを再実行する。差分のあるファイルは `<file>.new` として提案され、上書きはされない |
+| **plugin（スキル）を更新したい** | `claude plugin marketplace update northraystudio` → `claude plugin update maruda@northraystudio` → `/reload-plugins`（[plugin を更新する](#plugin-を更新する)を参照） |
+| **ハーネスのファイルを更新したい** | 同じ導入コマンドを再実行する。差分のあるファイルは `<file>.new` として提案され、上書きはされない |
 
 ```bash
 # フル（言語は必ず明示。自動検出しない）
@@ -119,6 +120,32 @@ plugin を入れたあとに実行するのは `/maruda:setup` の1つだけで�
 既存の内容を壊さずにマージして書きます。ただし **Claude Code は settings からの
 自動インストールはしません**。これらのキーは marketplace を登録して plugin を有効に
 するだけなので、各自が一度 `/plugin install maruda@northraystudio` を実行します。
+
+#### plugin を更新する
+
+この marketplace のようなサードパーティの marketplace は、**自動更新が既定でオフ**です。
+入れた plugin は、更新するまで元の版のままです。先に marketplace を、次に plugin を
+更新します。
+
+```bash
+claude plugin marketplace update northraystudio
+claude plugin update maruda@northraystudio
+```
+
+セッションの中からなら、`/plugin` の **Marketplaces** → `northraystudio` →
+**Update marketplace**、続けて **Installed** → `maruda` → **Update now** で同じことが
+できます。実行中のセッションは `/reload-plugins` を実行するまで古いスキルのままです。
+新しいセッションでは自動で新しい版が読み込まれます。手で更新したくない場合は、
+**Marketplaces** タブで `northraystudio` の **Enable auto-update** を選びます。
+
+- **タグに固定している場合**は、更新してもそのタグのままです。`ref`（または
+  `setup.sh --plugin --plugin-ref`）を新しいタグ `maruda--v<version>` に変えてください。
+- **`main` に新しい変更があるのに「already at the latest version」と出る場合**:
+  更新は `.claude-plugin/plugin.json` の `version` で判定されるので、版を上げずに
+  マージされた変更は届きません（`docs/adr/0006`）。
+  `claude plugin uninstall maruda@northraystudio` を実行してから入れ直してください。
+- `setup.sh` がプロジェクトに書いたハーネスのファイルは plugin に含まれません。
+  これらは導入コマンドを再実行して更新します。
 
 ### ハーネス一式を入れる
 

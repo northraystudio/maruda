@@ -104,7 +104,8 @@ Pick the row that matches your situation — each command is complete as written
 | **Prefer answering questions over flags**               | Install skills first, then run `/maruda:setup` in Claude Code — interview-style, writes only after you approve the summary                                                |
 | **Default branch pushed → enforce the gates**           | `curl -fsSL <install.sh URL> \| bash -s -- --langs <yours> --protect` (needs `gh` auth with **repo admin**) — checks become required and actually block merges          |
 | **Add AI PR review (PR Agent)**                         | Full one-liner plus `--pr-agent` (or `--no-ci --pr-agent` if you already have CI), then add the `OPENAI_KEY` repository secret. Advisory only — never a required check |
-| **Update to the latest skills / harness**               | Re-run the install command — changed harness files appear as `<file>.new` for manual merge, nothing is overwritten; coming from a `yds-` install, see the migration note below |
+| **Update the plugin (skills)**                          | `claude plugin marketplace update northraystudio` then `claude plugin update maruda@northraystudio`, then `/reload-plugins` (see [Updating the plugin](#updating-the-plugin)) |
+| **Update the harness files**                            | Re-run the install command — changed harness files appear as `<file>.new` for manual merge, nothing is overwritten; coming from a `yds-` install, see the migration note below |
 
 ```bash
 # Full one-liner (languages are explicit, never detected)
@@ -236,6 +237,32 @@ to pin a tag), merging into whatever is already in `settings.json`. Note that
 Claude Code does **not** auto-install from settings: the keys make the marketplace
 known and mark the plugin enabled, and each person still runs
 `/plugin install maruda@northraystudio` once.
+
+#### Updating the plugin
+
+Auto-update is **off** by default for third-party marketplaces such as this one, so
+an installed plugin stays at its version until you update it. First refresh the
+marketplace, then the plugin:
+
+```bash
+claude plugin marketplace update northraystudio
+claude plugin update maruda@northraystudio
+```
+
+Inside a session the same steps are in `/plugin`: **Marketplaces** → `northraystudio`
+→ **Update marketplace**, then **Installed** → `maruda` → **Update now**. The running
+session keeps the old skills until you run `/reload-plugins`; a new session picks up
+the new version automatically. To stop doing this by hand, choose **Enable
+auto-update** for `northraystudio` in the **Marketplaces** tab.
+
+- **Pinned to a tag?** The update stays on that tag. Point the `ref` (or
+  `setup.sh --plugin --plugin-ref`) at the new tag, `maruda--v<version>`, instead.
+- **"already at the latest version", but `main` has newer changes?** Updates are
+  detected by the `version` in `.claude-plugin/plugin.json`, so a change merged without
+  a version bump does not reach you (`docs/adr/0006`). Run
+  `claude plugin uninstall maruda@northraystudio` and then install it again.
+- The harness files that `setup.sh` wrote into your project are not part of the
+  plugin; update those by re-running the install command.
 
 #### Option 2: CLI Install (any agent)
 
