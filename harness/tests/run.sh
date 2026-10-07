@@ -38,7 +38,8 @@ check "full: golangci-lint cache pinned by SHA"  "grep -q 'actions/cache@0057852
 check "full: TS job has Typecheck step"          "grep -q 'name: Typecheck' '$WORK/full/.github/workflows/ci.yml'"
 check "full: harness-checklist.md written"       "[[ -f '$WORK/full/docs/harness-checklist.md' ]]"
 check "full: coding principles installed"        "[[ -f '$WORK/full/.claude/rules/coding-principles.md' ]]"
-check "full: go + ts rules installed"            "[[ -f '$WORK/full/.claude/rules/go.md' && -f '$WORK/full/.claude/rules/typescript.md' ]]"
+check "full: cycle rules carry build check"      "grep -q 'Check before building' '$WORK/full/.claude/rules/maruda-cycle.md'"
+check "full: go + ts rules installed"           "[[ -f '$WORK/full/.claude/rules/go.md' && -f '$WORK/full/.claude/rules/typescript.md' ]]"
 
 # ── Language-variant CI jobs ─────────────────
 mkdir -p "$WORK/jsonly" "$WORK/pyonly"
