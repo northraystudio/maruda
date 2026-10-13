@@ -21,6 +21,9 @@ the type-system rules.
   `textContent`. `eval` / `new Function` are forbidden. [SEC]
 - Server secrets live in a validated env module and never reach client
   bundles (watch framework `PUBLIC_`/`NEXT_PUBLIC_` prefixes). [SEC]
+- Never accept or trust privilege/ownership fields (`role`, `isAdmin`,
+  `userId`, `ownerId`, etc.) from request bodies or JWT claims without
+  server-side re-validation against the current principal. [SEC]
 - ESM modules; prefer named exports for shared code. [DX]
 - Unit tests isolate the unit (mock the boundary, not the internals); the
   test lands in the same PR as the code. [DX]

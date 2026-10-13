@@ -23,4 +23,7 @@ decided — do not guess them here.
 - SQL is parameterized via the driver — never `fmt.Sprintf` into a query. [SEC]
 - Decode/validate input at the handler boundary into typed structs; the
   domain layer receives valid values only. [SEC][ARC]
+- Never map privilege or ownership fields (`Role`, `IsAdmin`, `UserID`,
+  `OwnerID`, etc.) directly from request bodies. Determine them server-side
+  from the authenticated principal. [SEC]
 - Table-driven tests; keep them `-race`-clean (CI runs `go test -race`). [DX]

@@ -56,6 +56,14 @@ like. Tags: [ARC] Architecture · [REL] Reliability · [OBS] Observability ·
 - Outbound requests to user-influenced URLs go through an allowlist (SSRF).
 - Output is encoded/escaped by the framework; never hand-built HTML (XSS).
 - PII and credentials are masked in logs and error responses.
+- Privilege and ownership fields (`role`, `isAdmin`, `userId`, `ownerId`,
+  `price`, `status`, etc.) are never taken from client input. They are
+  determined server-side from the authenticated principal (re-fetched from
+  the DB or trusted store on each request). [SEC]
+- JWT claims and request body values are not used for authorization
+  decisions without re-validation against the current server-side state. [SEC]
+- Create/update handlers explicitly ignore or reject unexpected fields that
+  affect privileges or ownership (prevent mass assignment). [SEC]
 
 ## Developer experience [DX]
 
