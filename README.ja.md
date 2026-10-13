@@ -1,63 +1,129 @@
 # maruda
 
-**AI with a harness.** — AI開発に、ハーネスをまるっと。
-
-maruda（まるだ）は、「まるっと」と **DA**（Dev with AI）から付けた名前です。
-スキルだけでなく、ルール、CI、セキュリティのゲート、フックを一式で配ります。
+**AI with a harness.** — AI 開発に、ハーネスをまるっと。
+コード品質の評価、セキュリティ監査、コードから生成する仕様書、GitHub Issue 起点の
+実装を行う Claude Code スキル群と、それを**環境側で**強制するフック・ルール・CI
+ゲートの一式です。
 
 English: [README.md](README.md)
 
-maruda は、Claude Code のエージェントスキル群と、AI 支援開発のための**プロジェクト
-ハーネス**です。コード品質のレビュー、セキュリティ監査、コードから生成する仕様書、
-GitHub Issue 起点の実装と自律検証、初日から効く CI とセキュリティゲート
-（gitleaks / Semgrep / Trivy）を含みます。**ハーネスエンジニアリング**と
-**ループエンジニアリング**の考え方に基づき、環境が機械的に品質を強制し
-（フック、厳格な CI、ブランチ保護）、境界のある改善ループ
-（診断 → Issue → 計画 → 実装 ⇄ 検証）が仕事をします。
+## クイックスタート
 
-> **`dev-skills` から改名しました。** このリポジトリは 2026-09-20 に
-> `ymd38/dev-skills` から `northraystudio/maruda` へ移管・改名しました。旧 URL は
-> GitHub が転送するので、旧アドレスを指したままのワンライナーやクローンは動き続け、
-> 導入済みのプロジェクトで必要な作業はありません。新しいリンクには新アドレスを
-> 使ってください。
-
-## スキルとは
-
-スキルは、特定の作業に必要な知識・手順・出力テンプレートをエージェントに与える
-Markdown ファイルです。導入すると、Claude Code が関連する依頼を認識して自動的に
-適用します。毎回プロンプトで指示する必要はありません。
-
-## 継続的改善サイクル
+Claude Code で 2 コマンド：
 
 ```
-診断（software-evaluation / vulnerability-scan / data-validation）
-  → 可視化（progress-dashboard）
-  → Issue 登録（report-to-issues）／ Issue 起票（gh-issue-drafter）
-  → 計画（gh-issue-planner）
-  → 実装 ⇄ 検証（gh-issue-resolver、複数まとめるなら gh-batch-runner）
+/plugin marketplace add northraystudio/maruda
+/plugin install maruda@northraystudio
 ```
 
-- 診断系のスキルは**読み取り専用**です。証拠を出すだけで、コードやデータを黙って
-  書き換えません。
-- 実装には、`gh-issue-planner` が Issue に投稿した**合意プランのコメント**が要ります。
-- `gh-issue-resolver` が自律的に直せるのは、**自分の変更が壊したもの**だけです
-  （リグレッション、3回まで）。元から壊れていたものは `report-to-issues` に渡します。
+**作る。** やりたいことを書けば、Issue、計画、PR と続きます：
 
-## スキル一覧
+```
+/maruda:gh-issue-drafter ログインAPIにレート制限を入れたい
+/maruda:gh-issue-planner #42      # コードを調査し、合意プランを Issue にコメント
+/maruda:gh-issue-resolver #42     # ブランチ → 実装 → テスト → PR → 検証
+```
 
-| スキル | 説明 |
+**調べる。** 品質とセキュリティのレポートが `docs/` に出て、ダッシュボードで
+数値の推移を追えます：
+
+```
+/maruda:software-evaluation src/
+/maruda:vulnerability-scan src/
+/maruda:progress-dashboard
+```
+
+**Tips.** 自然文でも動きます。複数の Issue を回すなら `/goal` と組み合わせます：
+
+| こう言う | 何が動くか |
 | --- | --- |
+| 「Issue #1 を実装して」 | その Issue に `gh-issue-resolver` |
+| 「Issue #1 から #5 を計画して」 | `gh-issue-planner` が 1 回の調査で Issue ごとにプランを投稿 |
+| 「Issue #1 から #5 をまとめて対応して」 | `gh-batch-runner`：`epic/**` ブランチ 1 本、Issue ごと 1 コミット、PR 1 本 |
+| `/goal Issue #1 から #5 を対応して` | Claude Code の `/goal` は条件が満たされるまで作業を続ける。Issue ごとに計画 → 実装 → PR を、間で促さずに回す。止めるには `/goal clear` |
+
+これをプロジェクトの既定の進め方にするなら（`CLAUDE.md`、フック、ルール、CI
+ゲート）`/maruda:setup` を実行します。いくつか質問され、承認するまで何も書きません。
+
+Claude Code 以外のエージェントでは、名前空間なしで同じスキルが入ります：
+
+```bash
+npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
+```
+
+## 目次
+
+- [何が手に入るか](#何が手に入るか)
+- [サイクル](#サイクル)
+- [導入](#導入)
+  - [使い方別の早見表](#使い方別の早見表)
+  - [ハーネス一式](#ハーネス一式)
+  - [スキルだけ](#スキルだけ)
+  - [更新](#更新)
+- [使い方](#使い方)
+- [サンプル](#サンプル)
+- [補足](#補足)
+- [ライセンス](#ライセンス)
+
+## 何が手に入るか
+
+スキルは 11 個。診断系は**読み取り専用**で、証拠を出すだけでコードやデータを
+書き換えません。
+
+| スキル | 何をするか |
+| --- | --- |
+| [software-evaluation](skills/software-evaluation/SKILL.md) | 5 つの柱（アーキテクチャ / 信頼性 / 可観測性 / セキュリティ / DX）でコード品質を採点し、1〜10 のスコアカードとロードマップを出す |
+| [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Semgrep を使った OWASP ベースのセキュリティ監査。深刻度と修正方針付き |
+| [data-validation](skills/data-validation/SKILL.md) | 自前のフィクスチャか明示的に設定した非本番接続を読み、件数・NULL 率・分布・一意性・参照整合性・書式を検証する |
 | [spec-doc](skills/spec-doc/SKILL.md) | コードから「生きた仕様書」を生成・同期し、ドキュメントと実装の乖離をなくす |
-| [software-evaluation](skills/software-evaluation/SKILL.md) | 5つの柱（アーキテクチャ / 信頼性 / 可観測性 / セキュリティ / DX）でコード品質を評価し、1〜10 のスコアカードと改善ロードマップを出す |
-| [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Semgrep を使った OWASP ベースの攻撃的セキュリティ監査。深刻度と修正方針付きの読み取り専用レポート |
-| [data-validation](skills/data-validation/SKILL.md) | プロジェクト自身のフィクスチャ、または明示的に設定した非本番接続からデータを読み、件数・NULL 率・分布・一意性・参照整合性・書式を検証する。読み取り専用、JSON は出さない |
-| [report-to-issues](skills/report-to-issues/SKILL.md) | 評価・監査レポートを読み、対話的に選んだ項目を `gh` CLI で GitHub Issue に登録する |
-| [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | ざっくりした要望を、完了条件・触らない範囲・設計方針まで揃った Issue に仕立てる。要望が大きすぎるときは、独立した Issue への分割か、Epic と sub-issue での起票を提案する |
-| [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Issue を取得してコードを調査し、対応方針・影響範囲・実装手順を合意プランとしてコメントする。実装はしない |
-| [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | 合意プランのある Issue を実装し、テストと診断を再実行して、自分の変更が壊した分だけを自律的に直し、PR を出す |
-| [gh-batch-runner](skills/gh-batch-runner/SKILL.md) | 複数の Issue を1リリースとしてまとめる。Epic Issue がメンバーを持ち、共有の `epic/**` ブランチに Issue ごと1コミットで積み、全体を検証して PR は1本 |
-| [progress-dashboard](skills/progress-dashboard/SKILL.md) | JSON 要約から、品質スコアとセキュリティ指摘の推移を見る HTML ダッシュボードを生成する |
-| [setup](skills/setup/SKILL.md) | 短いインタビューでハーネス一式（CLAUDE.md、フック、settings、ルール）を導入する。言語やコマンドは必ず質問し、自動検出しない |
+| [progress-dashboard](skills/progress-dashboard/SKILL.md) | 品質スコアとセキュリティ指摘の推移を見る HTML ダッシュボード |
+| [report-to-issues](skills/report-to-issues/SKILL.md) | 評価・監査レポートを対話的に GitHub Issue に登録する |
+| [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | ざっくりした要望を、完了条件・触らない範囲・設計方針の揃った Issue にする。大きすぎれば分割か Epic を提案 |
+| [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Issue を調査し、合意プランをコメントとして投稿する |
+| [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | 合意プランをブランチで実装して PR を出し、診断を再実行して自分が壊した分だけ直す |
+| [gh-batch-runner](skills/gh-batch-runner/SKILL.md) | 複数の Issue を 1 リリースにまとめる。Epic、`epic/**` に Issue ごと 1 コミット、PR は 1 本 |
+| [setup](skills/setup/SKILL.md) | 短いインタビューでハーネスを導入する。言語は必ず質問し、自動検出しない |
+
+## サイクル
+
+スキルは、境界のある改善ループを成します：診断 → Issue → 計画 → 実装 ⇄ 検証。
+
+```mermaid
+graph LR
+    Diagnose["🔍 診断<br/>software-evaluation<br/>vulnerability-scan<br/>data-validation"]
+    Visualize["📊 可視化<br/>progress-dashboard"]
+    Register["📋 Issue 登録<br/>report-to-issues"]
+    Draft["✍️ Issue 起票<br/>gh-issue-drafter"]
+    Plan["🧠 計画<br/>gh-issue-planner"]
+    Resolve["🛠️ 実装 + 検証<br/>gh-issue-resolver"]
+    Batch["📦 まとめて実行<br/>gh-batch-runner"]
+
+    Idea["💡 ざっくりした要望"] -- "ゆるい「やりたいこと」" --> Draft
+    Diagnose -- "レポート + JSON" --> Visualize
+    Diagnose -- "レポート" --> Register
+    Register -- "GitHub Issue" --> Plan
+    Draft -- "スコープ済み Issue" --> Plan
+    Plan -- "合意プランのコメント" --> Resolve
+    Plan -- "複数 Issue を 1 リリース" --> Batch
+    Batch -- "Issue ごと 1 コミット" --> Resolve
+    Batch -- "epic/** から PR 1 本" --> Done
+    Resolve -- "差分に診断を再実行" --> Diagnose
+    Diagnose -- "リグレッションだけ" --> Resolve
+    Resolve -- "PR + 変更" --> Done["✅ 検証済み PR"]
+    Visualize -. "推移を追う" .-> Done
+```
+
+支えているのは 3 つのルールです：
+
+- **診断は読み取り専用。** 出力はレポートと Issue だけ。
+- **実装には合意プランが要る。** `gh-issue-planner` が Issue に投稿したコメントが
+  それで、resolver はその範囲を越えない。
+- **自律性は帰属で縛る。** `gh-issue-resolver` は自分の差分に診断を再実行し、
+  **自分が壊したもの**だけを 3 回まで直す。元から壊れていたものは
+  `report-to-issues` に渡し、同じ PR では直さない。
+
+各ステップの詳細、バッチの流れ、各スキルが何を出すか：
+[docs/cycle.md](docs/cycle.md)（英語）。
 
 ## 導入
 
@@ -65,17 +131,16 @@ Markdown ファイルです。導入すると、Claude Code が関連する依�
 
 | 状況 | やること |
 | --- | --- |
-| **Claude Code を使っていて、スキルだけ欲しい** | `/plugin marketplace add northraystudio/maruda` → `/plugin install maruda@northraystudio`。コマンドは `/maruda:<skill>` の形で入る |
-| **Claude Code 以外のエージェント、または plugin を使わない** | `npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy` |
-| **新規プロジェクト、言語が決まっている** | 下のフルのワンライナーに `--langs` を渡す。`git init` → 初回 push → `--protect` |
+| **Claude Code、スキルだけ欲しい** | [クイックスタート](#クイックスタート)の `/plugin` 2 コマンド |
+| **別のエージェント、または plugin を使わない** | [クイックスタート](#クイックスタート)の `npx skills add` |
+| **新規プロジェクト、言語が決まっている** | 下のフルのワンライナーに `--langs` と `--with-skills`。初回 push 後に `--protect` |
 | **新規プロジェクト、言語が未定** | 下の最小のワンライナー（レールだけ）→ あとで `/maruda:setup` |
 | **既存プロジェクト** | フルのワンライナー。既存の `CLAUDE.md` / settings / フックは上書きされず、settings のフックはマージされる。その後 `/maruda:setup` |
-| **チームで共有したい** | `--copy` で入れて `.claude/`、`CLAUDE.md`、`.github/` をコミットする。または `setup.sh --plugin` で plugin をリポジトリに記録する |
-| **フラグより質問に答えたい** | 先にスキルを入れて、Claude Code で `/maruda:setup` |
-| **ゲートを実際に効かせたい** | ワンライナーに `--protect` を足す（`gh` の admin 権限が必要） |
-| **AI の PR レビューを足したい** | ワンライナーに `--pr-agent`、そのあと `OPENAI_KEY` をリポジトリシークレットに登録する。助言のみで、必須チェックにはしない |
-| **plugin（スキル）を更新したい** | `claude plugin marketplace update northraystudio` → `claude plugin update maruda@northraystudio` → `/reload-plugins`（[plugin を更新する](#plugin-を更新する)を参照） |
-| **ハーネスのファイルを更新したい** | 同じ導入コマンドを再実行する。差分のあるファイルは `<file>.new` として提案され、上書きはされない |
+| **チームで共有したい** | `--copy`（ここでは既定）で入れて `.claude/`、`CLAUDE.md`、`.github/` をコミット。クローンした人は導入不要 |
+| **フラグより質問に答えたい** | スキルを入れてから `/maruda:setup` |
+| **ゲートを実際に効かせたい** | `--protect` を付けて再実行（push 済みの既定ブランチと `gh` の admin 権限が必要） |
+| **AI の PR レビューを足したい** | `--pr-agent`（CI が既にあるなら `--no-ci --pr-agent`）と `OPENAI_KEY` シークレット。助言のみ |
+| **更新したい** | [更新](#更新)を参照 |
 
 ```bash
 # フル（言語は必ず明示。自動検出しない）
@@ -87,154 +152,89 @@ curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/
   | bash -s -- --minimal
 ```
 
-### plugin として入れる（Claude Code、推奨）
+### ハーネス一式
 
-```
-/plugin marketplace add northraystudio/maruda
-/plugin install maruda@northraystudio
-```
+スキルだけでは作業手順にとどまります。ハーネスは機械的な部分を足します：簡潔な
+`CLAUDE.md`、4 つのフック（書き込み時フォーマット、危険コマンドのガード、
+セッション開始時のコンテキスト、Stop 時の促し）、採点基準に揃えたコーディング
+ルール、そして `--langs` を付けると厳格な GitHub Actions CI とセキュリティスキャン
+（gitleaks と Semgrep は初日からゲート、Trivy は段階導入）。ツールの版は固定され、
+フォーマットフックはコードをダウンロードしません。
 
-スキルは名前空間付きで入ります（`/maruda:spec-doc`、`/maruda:setup`、
-`/maruda:gh-issue-planner`）。他のスキル集と衝突せず、同梱の
-`harness/scripts/setup.sh` は常にスキルと同じ版です。
+既存ファイルは上書きされません。差分のあるファイルは `<file>.new` として提案され、
+マージはあなたが行います。対応言語は Go / Python / TypeScript / JavaScript。
 
-plugin を入れたあとに実行するのは `/maruda:setup` の1つだけです。plugin は
-プロジェクトにファイルを書けないので、`CLAUDE.md`、`.claude/hooks/`、
-`.claude/settings.json`、`.claude/rules/`、CI は引き続き `setup.sh` の担当です。
+生成されるファイルの一覧、すべてのフラグ、ゲートの成熟度ラダー、他の入口
+（クローンからの `setup.sh`、`--plugin`）：
+[docs/install.ja.md](docs/install.ja.md)。
 
-`main` を追うのではなくリリースを固定したい場合は、marketplace に ref を付けます。
+### スキルだけ
 
-```json
-// .claude/settings.json
-{
-  "extraKnownMarketplaces": {
-    "northraystudio": {
-      "source": { "source": "github", "repo": "northraystudio/maruda", "ref": "v0.1.0" }
-    }
-  },
-  "enabledPlugins": { "maruda@northraystudio": true }
-}
-```
-
-この2つのキーは `setup.sh --plugin`（タグを固定するなら `--plugin-ref v0.1.0`）が
-既存の内容を壊さずにマージして書きます。ただし **Claude Code は settings からの
-自動インストールはしません**。これらのキーは marketplace を登録して plugin を有効に
-するだけなので、各自が一度 `/plugin install maruda@northraystudio` を実行します。
-
-#### plugin を更新する
-
-この marketplace のようなサードパーティの marketplace は、**自動更新が既定でオフ**です。
-入れた plugin は、更新するまで元の版のままです。先に marketplace を、次に plugin を
-更新します。
-
-```bash
-claude plugin marketplace update northraystudio
-claude plugin update maruda@northraystudio
-```
-
-セッションの中からなら、`/plugin` の **Marketplaces** → `northraystudio` →
-**Update marketplace**、続けて **Installed** → `maruda` → **Update now** で同じことが
-できます。実行中のセッションは `/reload-plugins` を実行するまで古いスキルのままです。
-新しいセッションでは自動で新しい版が読み込まれます。手で更新したくない場合は、
-**Marketplaces** タブで `northraystudio` の **Enable auto-update** を選びます。
-
-- **タグに固定している場合**は、更新してもそのタグのままです。`ref`（または
-  `setup.sh --plugin --plugin-ref`）を新しいタグ `maruda--v<version>` に変えてください。
-- **`main` に新しい変更があるのに「already at the latest version」と出る場合**:
-  更新は `.claude-plugin/plugin.json` の `version` で判定されるので、版を上げずに
-  マージされた変更は届きません（`docs/adr/0006`）。
-  `claude plugin uninstall maruda@northraystudio` を実行してから入れ直してください。
-- `setup.sh` がプロジェクトに書いたハーネスのファイルは plugin に含まれません。
-  これらは導入コマンドを再実行して更新します。
-
-### ハーネス一式を入れる
-
-スキルだけでは作業手順（L1）にとどまります。ハーネスは機械的なガードレールを
-足します（L2〜L3）：書き込み時のフォーマット、危険なコマンドのガード、簡潔な
-`CLAUDE.md`、サイクルのルール、GitHub Actions の CI、セキュリティスキャン。
-
-| 入口 | 使いどころ |
+| 入れ方 | コマンド |
 | --- | --- |
-| `curl \| bash` のワンライナー | まっさらな環境 / CI / とにかく入れたいとき（非対話、フラグ必須） |
-| `harness/scripts/setup.sh` | すでにこのリポジトリをクローンしているとき |
-| Claude Code の `/maruda:setup` | 言語やコマンドを対話で決めたいとき（自動検出しない） |
-| `--plugin` | クローンした全員が同じスキルを入れられるよう、plugin を `.claude/settings.json` に記録する |
+| Claude Code plugin（推奨） | `/plugin marketplace add northraystudio/maruda` → `/plugin install maruda@northraystudio`。スキルは `/maruda:<skill>` の形で入る |
+| 任意のエージェント、CLI | `npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy`（1 つなら `--skill spec-doc`） |
+| 手動コピー | `cp -r skills/* .claude/skills/` |
+| Git submodule | `git submodule add https://github.com/northraystudio/maruda.git .claude/maruda` |
+
+plugin をリリースに固定する方法、`npx` の対話ピッカーで「何も選択されていない」
+罠：[docs/install.ja.md#スキルだけ](docs/install.ja.md#スキルだけ)。
+
+### 更新
 
 ```bash
-# クローンから
-./harness/scripts/setup.sh --target /path/to/your-project --langs python --python-pm uv
+claude plugin marketplace update northraystudio   # 先に marketplace
+claude plugin update maruda@northraystudio        # 次に plugin
 ```
 
-パイプする前に中身を見たい場合：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/northraystudio/maruda/main/harness/scripts/install.sh -o install.sh
-less install.sh && bash install.sh --langs go
-```
-
-**既存ファイルは上書きされません。** 入ってくるファイルが手元と違うときは、
-`<file>.new` として隣に置かれます（pacman の `.pacnew` 方式）。`diff` で確認し、
-必要な分をマージしてから `.new` を消してください。内容が同じなら古い `.new` は
-消えます。`--force` を付けたときだけ上書きします。`settings.json` だけは例外で、
-フックは自動でマージされます（既存のエントリは保持）。最後のチェックリストに、
-提案されたファイルが一覧で出ます。
-
-対応言語は Go / Python / TypeScript / JavaScript。すべてのフラグは
-`setup.sh --help` を見てください。
-
-> **`yds-` 付きの名前からの移行：** `yds-` 接頭辞は廃止しました。フラットな
-> コマンド一覧でスキルをまとめるための接頭辞でしたが、その役目は plugin の
-> 名前空間が担います。`/yds-spec-doc` は plugin では `/maruda:spec-doc`、
-> `npx skills add` では `/spec-doc` になります。改名前に導入したプロジェクトでは
-> **`.claude/skills/yds-*` を削除**してから入れ直してください。残すと同じスキルが
-> 二重に登録されます。サイクルのルールも
-> `.claude/rules/dev-skills-cycle.md` から `.claude/rules/maruda-cycle.md` に
-> 変わりました。`setup.sh` は自分が書いていないファイルを消さないので、古い方は
-> 報告するだけです。submodule の置き場所も `.claude/maruda` になりました
-> （使っている場合は `git mv .claude/dev-skills .claude/maruda`）。
-> 引き継ぎマーカー（`<!-- gh-issue-planner:agreed-plan -->` など）と JSON 要約の
-> `type` の値は旧名のままなので、既存の Issue とダッシュボードのデータは
-> そのまま使えます。
-
-### スキルだけ入れる
-
-```bash
-# すべてのスキルを非対話で .claude/skills/ にコピー
-npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
-
-# 1つだけ
-npx skills add northraystudio/maruda --skill spec-doc --agent claude-code -y --copy
-```
-
-submodule で入れる場合：
-
-```bash
-git submodule add https://github.com/northraystudio/maruda.git .claude/maruda
-```
+開いているセッションでは、そのあと `/reload-plugins` を実行します。`setup.sh` が
+プロジェクトに書いたハーネスのファイルは plugin に含まれないので、導入コマンドを
+再実行して、提案された `<file>.new` を確認してください。タグ固定時の扱いや
+「already at the latest version」と出る場合：
+[docs/install.ja.md#更新](docs/install.ja.md#更新)。
 
 ## 使い方
 
+作業内容を伝えれば該当するスキルが適用されます。直接呼ぶこともできます：
+
 ```
-/maruda:spec-doc src/
 /maruda:software-evaluation src/backend/
 /maruda:vulnerability-scan src/
 /maruda:data-validation db/
+/maruda:spec-doc src/
+/maruda:progress-dashboard
 /maruda:report-to-issues docs/evaluation/myapp.20260406.md
 /maruda:gh-issue-drafter
-/maruda:gh-issue-planner
-/maruda:gh-issue-resolver
+/maruda:gh-issue-planner #42
+/maruda:gh-issue-resolver #42
 /maruda:gh-batch-runner
-/maruda:progress-dashboard
 /maruda:setup
 ```
 
-`npx skills add` で入れた場合は、名前空間なしで `/spec-doc` のようになります。
+自然文のトリガーは日英どちらでも効きます（「src/ を脆弱性スキャンして」、
+「Issue #42を実装して」、「セットアップして」）。`npx skills add` で入れた場合は
+名前空間なしで `/spec-doc`、`/setup` のようになります。
 
-## 決定の記録
+## サンプル
 
-設計上の判断は `docs/adr/` に ADR として残しています。スキル名から接頭辞を外した
-理由（0003）、フックを plugin に移さない理由（0004）、リポジトリのルートを plugin
-兼 marketplace にした理由とバージョン固定の方法（0005）など。
+![Progress Dashboard](examples/progress-dashboard/dashboard.png)
+
+`examples/progress-dashboard/` に、3 か月分の評価・監査 JSON と、それから生成した
+`dashboard.html` があります。ブラウザで開けます。
+
+## 補足
+
+- **決定の記録**は [`docs/adr/`](docs/adr/) に ADR として残しています。スキル名から
+  接頭辞を外した理由、フックを plugin に移さない理由、リポジトリのルートを plugin
+  兼 marketplace にした理由、リリースの切り方など。
+- **スキル**は、特定の作業に必要な知識・手順・出力テンプレートをエージェントに
+  与える Markdown ファイルです。導入すると、Claude Code が関連する依頼を認識して
+  自動的に適用します。
+- **名前**は「まるっと」と **DA**（Dev with AI）から。スキル、ルール、CI、
+  セキュリティゲートが一式で届きます。
+- **`dev-skills` から改名**（`ymd38/dev-skills` → `northraystudio/maruda`、
+  2026-09-20）。旧 URL は転送されます。`yds-` 付きの名前で導入したプロジェクトは
+  [移行ノート](docs/install.ja.md#yds--付きの名前からの移行)を参照してください。
 
 ## ライセンス
 
