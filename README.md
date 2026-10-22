@@ -67,7 +67,7 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 
 ## What you get
 
-Twelve skills. The diagnostic ones are read-only — they produce evidence and
+Thirteen skills. The diagnostic ones are read-only — they produce evidence and
 never edit code or data.
 
 | Skill | What it does |
@@ -78,6 +78,7 @@ never edit code or data.
 | [spec-doc](skills/spec-doc/SKILL.md) | Generates or syncs a living specification from source so docs stop drifting |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | HTML dashboard of quality scores and security findings over time |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | Turns evaluation and audit reports into GitHub Issues, interactively |
+| [sakuda-triage](skills/sakuda-triage/SKILL.md) | Checks [sakuda](https://github.com/northraystudio/sakuda) (DAST) findings against the source via its MCP: confirmed / false-positive / accepted with `file:line`, written back to sakuda after approval |
 | [rule-proposer](skills/rule-proposer/SKILL.md) | Turns confirmed findings into Semgrep rules with tested fixtures — or says why a finding cannot be a rule; writes only after approval |
 | [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | Turns a rough idea into a scoped Issue (Done / Out of scope / Design constraints); splits or files an Epic when it is too big |
 | [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Investigates an Issue and posts an agreed plan as a comment |
@@ -100,12 +101,16 @@ graph LR
     Resolve["🛠️ Resolve + Verify<br/>gh-issue-resolver"]
     Batch["📦 Batch Run<br/>gh-batch-runner"]
     Rules["📐 Codify<br/>rule-proposer"]
+    Triage["🔎 Triage DAST<br/>sakuda-triage"]
 
     Idea["💡 Rough idea<br/>(hand-written)"] -- "Loose 'what I want'" --> Draft
     Diagnose -- "Reports + JSON" --> Visualize
     Diagnose -- "Reports" --> Register
     Diagnose -- "Confirmed findings" --> Rules
     Rules -- "Approved rules (.semgrep/rules/)" --> Diagnose
+    Sakuda["🌐 sakuda (DAST)"] -- "Findings via MCP" --> Triage
+    Triage -- "Triage report" --> Register
+    Triage -- "Confirmed findings" --> Rules
     Register -- "GitHub Issues" --> Plan
     Draft -- "Scoped GitHub Issue" --> Plan
     Plan -- "Agreed plan comment" --> Resolve
@@ -209,6 +214,7 @@ Describe the task and the matching skill is applied, or call one directly:
 /maruda:spec-doc src/
 /maruda:progress-dashboard
 /maruda:report-to-issues docs/evaluation/myapp.20260406.md
+/maruda:sakuda-triage
 /maruda:rule-proposer docs/security-audit/myapp.20260406.md
 /maruda:gh-issue-drafter
 /maruda:gh-issue-planner #42
