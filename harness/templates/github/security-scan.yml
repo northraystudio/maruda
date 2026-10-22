@@ -84,7 +84,11 @@ jobs:
           if find .semgrep -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | grep -q .; then
             extra=(--config .semgrep)
           fi
+          # --error: exit 1 on any finding. Without it semgrep exits 0 and the
+          # job never blocks a merge. Silence a false positive at the smallest
+          # unit (`# nosemgrep: <rule-id>` with a reason), never here.
           semgrep \
+            --error \
             --config p/security-audit \
             --config p/owasp-top-ten \
 {{SEMGREP_LANG_CONFIGS}}

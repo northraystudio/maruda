@@ -107,7 +107,9 @@ check "rules: checklist asks to commit .semgrep/"   "grep -q '\`.semgrep/\`' '$W
 if python3 -c 'import yaml' >/dev/null 2>&1; then
   python3 -c "import yaml,sys; wf=yaml.safe_load(open('$FULL_SCAN')); print(next(s['run'] for s in wf['jobs']['semgrep']['steps'] if s.get('name')=='Run Semgrep'))" >"$WORK/semgrep-step.sh"
   mkdir -p "$WORK/sg-stub/bin" "$WORK/sg-none" "$WORK/sg-empty/.semgrep/rules"
-  printf '#!/usr/bin/env bash\necho "$*"\n' >"$WORK/sg-stub/bin/semgrep"; chmod +x "$WORK/sg-stub/bin/semgrep"
+  # Stub semgrep: prints its args; with SG_FINDINGS=1 it behaves like real
+  # semgrep with findings — exit 1 only when --error was passed, 0 otherwise.
+  printf '#!/usr/bin/env bash\necho "$*"\nif [[ "${SG_FINDINGS:-0}" == 1 && " $* " == *" --error "* ]]; then exit 1; fi\n' >"$WORK/sg-stub/bin/semgrep"; chmod +x "$WORK/sg-stub/bin/semgrep"
   sg_args() { (cd "$1" && PATH="$WORK/sg-stub/bin:$PATH" bash -e "$WORK/semgrep-step.sh"); }
   # The step must still run the registry scan; only the custom-rule config is absent.
   sg_omits() { local out; out=$(sg_args "$1") || return 1
@@ -115,6 +117,9 @@ if python3 -c 'import yaml' >/dev/null 2>&1; then
   check "rules: CI step passes .semgrep when rules exist" "mkdir -p '$WORK/sg-rules' && cp -r '$WORK/full/.semgrep' '$WORK/sg-rules/' && sg_args '$WORK/sg-rules' | grep -q -- '--config .semgrep'"
   check "rules: CI step omits .semgrep with no dir"       "sg_omits '$WORK/sg-none'"
   check "rules: CI step omits .semgrep when dir is empty" "sg_omits '$WORK/sg-empty'"
+  # #34: the Semgrep job is a hard gate — a finding must fail the step.
+  check "gate: semgrep step fails on a finding"     "! (SG_FINDINGS=1 sg_args '$WORK/sg-none')"
+  check "gate: semgrep step passes with no finding" "SG_FINDINGS=0 sg_args '$WORK/sg-none'"
 fi
 
 # ── 2. YAML validity (needs python3 + pyyaml) ─
