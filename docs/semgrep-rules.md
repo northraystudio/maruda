@@ -18,6 +18,8 @@ With neither present the scan is exactly the registry scan. Semgrep fails on a
   (`.ts`, `.py`, `.go`, …). In the fixture, mark lines that must match with
   `// ruleid: <rule-id>` and lines that must not with `// ok: <rule-id>`.
   Check with `semgrep --test .semgrep/rules`.
+  A rule that targets YAML names its fixture `<rule-id>.test.yaml`: a plain
+  `<rule-id>.yaml` would be loaded as a rule file by `--config .semgrep`.
 - **Fixtures are excluded from the scan.** The generated `.semgrepignore`
   lists `.semgrep/`, because fixtures are intentionally vulnerable. That entry
   covers rule fixtures only; never exclude application source to silence a
