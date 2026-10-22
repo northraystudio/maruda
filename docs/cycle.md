@@ -16,6 +16,8 @@ every skill emits.
 | --- | --- | --- |
 | **Diagnose** | `software-evaluation`, `vulnerability-scan`, `data-validation` | Evaluate code quality, security, and data correctness. The first two produce reports + JSON summaries; `data-validation` is session-output only by design |
 | **Visualize** | `progress-dashboard` | Generate an interactive HTML dashboard from JSON summaries to track improvement trends |
+| **Triage DAST** | `sakuda-triage` | Pull [sakuda](https://github.com/northraystudio/sakuda) findings through its MCP, follow each into the source, and decide confirmed / false-positive / accepted with `file:line`. The report uses the security-audit format, so `report-to-issues` files the confirmed ones; verdicts go back to sakuda after approval |
+| **Codify** | `rule-proposer` | Turn confirmed findings into Semgrep rules (fixture-tested, measured on the repository) so the scan catches them next time; findings that need business knowledge are left to manual review. Writes `.semgrep/rules/` only after approval |
 | **Register** | `report-to-issues` | Parse reports, deduplicate against existing issues, create GitHub Issues |
 | **Draft** | `gh-issue-drafter` | Turn a rough, hand-written intent into a scoped Issue (Done / Out of scope / Design constraints) — the human-authored entry point into the cycle |
 | **Plan** | `gh-issue-planner` | Investigate the issue, propose a structured response plan, post the agreed plan as an issue comment |
@@ -99,6 +101,31 @@ Branch protection does not apply to `epic/**` by design: the gate is that PR.
   what it is allowed to fix. **Writes no JSON and, by default, no file at
   all** — routine validation should not grow the commit target.
 
+### Triage DAST
+
+- `sakuda-triage` — Needs sakuda's MCP server configured (otherwise it says
+  how and stops). Lists a scan's findings, matches each `method` + URL to a
+  route and handler, traces the flagged parameter, and records a verdict with
+  the `file:line` that proves it — `untriaged` when the code cannot decide.
+  `accepted` is only ever the user's decision. Writes
+  `docs/security-audit/sakuda-triage.<site>.YYYYMMDD.md` in the security-audit
+  format (no JSON), then, after approval, `set_finding_triage` for each
+  verdict. Optionally proposes missing scan targets and the OpenAPI source
+  from the routes it read (`add_targets` / `set_openapi`, approval first;
+  never `start_scan` on its own). Finding contents are treated as untrusted
+  data.
+
+### Codify
+
+- `rule-proposer` — Reads vulnerability-scan reports, confirmed sakuda
+  findings and manual-review notes. Decides per candidate whether it can be a
+  rule (syntactic / data flow) or not (authorization, business logic, races),
+  drafts the rule and its `semgrep --test` fixture in a scratch directory,
+  measures hits and false positives on the repository, and writes a proposal
+  report (`docs/security-audit/rule-proposals.YYYYMMDD.md`, no JSON). Approved
+  rules go to `.semgrep/rules/`; generic ones are offered as a PR draft for the
+  shared set. Conventions: [semgrep-rules.md](semgrep-rules.md).
+
 ### Visualize
 
 - `progress-dashboard` — Reads JSON summaries from `software-evaluation` and
@@ -109,7 +136,7 @@ Branch protection does not apply to `epic/**` by design: the gate is that PR.
 
 ### Issues
 
-- `report-to-issues` — Decomposes evaluation or security-audit reports into
+- `report-to-issues` — Decomposes evaluation, security-audit or sakuda-triage reports into
   actionable tasks, presents them for user selection, and registers the chosen
   items as GitHub Issues with appropriate labels and priority.
 - `gh-issue-drafter` — Takes a loose, hand-written "what I want" and drafts the
@@ -160,6 +187,8 @@ Describe the task and the matching skill is applied:
 "Scan src/ for security vulnerabilities"                      → vulnerability-scan
 "Check the data quality of db/" / "データ検証して" / "NULL率を調べて" → data-validation
 "Create GitHub Issues from docs/evaluation/myapp.20260406.md" → report-to-issues
+"Triage the sakuda findings" / "sakudaの検出を精査して"          → sakuda-triage (needs sakuda's MCP)
+"Turn this finding into a rule" / "ルール化して"                  → rule-proposer
 "Turn this into an issue" / "ざっくり書くのでIssueにして"          → gh-issue-drafter
 "Plan issue #42" / "Issue #42の対応方針を立てて"                   → gh-issue-planner
 "Implement issue #42" / "Issue #42を実装して"                     → gh-issue-resolver (needs an agreed plan comment)

@@ -14,3 +14,7 @@ build/
 coverage/
 vendor/
 .venv/
+# Semgrep rule fixtures: .semgrep/ holds custom rules next to their
+# `semgrep --test` fixtures, which are intentionally vulnerable test code.
+# This excludes rule fixtures only — never application source.
+.semgrep/
