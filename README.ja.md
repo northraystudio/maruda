@@ -67,7 +67,7 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 
 ## 何が手に入るか
 
-スキルは 11 個。診断系は**読み取り専用**で、証拠を出すだけでコードやデータを
+スキルは 12 個。診断系は**読み取り専用**で、証拠を出すだけでコードやデータを
 書き換えません。
 
 | スキル | 何をするか |
@@ -78,6 +78,7 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 | [spec-doc](skills/spec-doc/SKILL.md) | コードから「生きた仕様書」を生成・同期し、ドキュメントと実装の乖離をなくす |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | 品質スコアとセキュリティ指摘の推移を見る HTML ダッシュボード |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | 評価・監査レポートを対話的に GitHub Issue に登録する |
+| [rule-proposer](skills/rule-proposer/SKILL.md) | 確定した検出を、fixture でテスト済みの Semgrep ルールにする。ルールにできないものは理由を示す。書き込みは承認後だけ |
 | [gh-issue-drafter](skills/gh-issue-drafter/SKILL.md) | ざっくりした要望を、完了条件・触らない範囲・設計方針の揃った Issue にする。大きすぎれば分割か Epic を提案 |
 | [gh-issue-planner](skills/gh-issue-planner/SKILL.md) | Issue を調査し、合意プランをコメントとして投稿する |
 | [gh-issue-resolver](skills/gh-issue-resolver/SKILL.md) | 合意プランをブランチで実装して PR を出し、診断を再実行して自分が壊した分だけ直す |
@@ -97,10 +98,13 @@ graph LR
     Plan["🧠 計画<br/>gh-issue-planner"]
     Resolve["🛠️ 実装 + 検証<br/>gh-issue-resolver"]
     Batch["📦 まとめて実行<br/>gh-batch-runner"]
+    Rules["📐 ルール化<br/>rule-proposer"]
 
     Idea["💡 ざっくりした要望"] -- "ゆるい「やりたいこと」" --> Draft
     Diagnose -- "レポート + JSON" --> Visualize
     Diagnose -- "レポート" --> Register
+    Diagnose -- "確定した検出" --> Rules
+    Rules -- "承認済みルール (.semgrep/rules/)" --> Diagnose
     Register -- "GitHub Issue" --> Plan
     Draft -- "スコープ済み Issue" --> Plan
     Plan -- "合意プランのコメント" --> Resolve
@@ -204,6 +208,7 @@ claude plugin update maruda@northraystudio        # 次に plugin
 /maruda:spec-doc src/
 /maruda:progress-dashboard
 /maruda:report-to-issues docs/evaluation/myapp.20260406.md
+/maruda:rule-proposer docs/security-audit/myapp.20260406.md
 /maruda:gh-issue-drafter
 /maruda:gh-issue-planner #42
 /maruda:gh-issue-resolver #42
