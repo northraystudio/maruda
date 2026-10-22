@@ -1,0 +1,34 @@
+# Template for a custom Semgrep rule (see docs/semgrep-rules.md).
+# Copy to .semgrep/rules/<rule-id>.yml and put its fixture next to it as
+# .semgrep/rules/<rule-id>.<ext> (for example .ts or .py).
+rules:
+  - id: user-supplied-url-fetched-without-allowlist
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      A URL taken from the request is fetched by the server without an
+      allowlist check (SSRF). Resolve the host against an allowlist of
+      schemes and hosts before fetching.
+    patterns:
+      - pattern-either:
+          - pattern: fetch(req.$SRC.$FIELD, ...)
+          - pattern: axios.get(req.$SRC.$FIELD, ...)
+      - pattern-not-inside: |
+          if (!isAllowedUrl(...)) { ... }
+          ...
+    metadata:
+      # Standard Semgrep metadata — no custom format.
+      category: security
+      cwe:
+        - "CWE-918: Server-Side Request Forgery (SSRF)"
+      owasp:
+        - "A10:2021 - Server-Side Request Forgery (SSRF)"
+      confidence: MEDIUM
+      references:
+        - https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html
+      # Optional, free-form: where this rule came from and what it guards.
+      endpoints:
+        - "POST /api/preview"
+      origin: >-
+        Confirmed SSRF finding from a dynamic scan, reproduced in
+        src/routes/preview.ts. Generalized from that handler.

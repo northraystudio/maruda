@@ -1,0 +1,40 @@
+# Tests maruda's shared Semgrep rules and validates the documented example.
+# Every shared rule ships with a `semgrep --test` fixture; a rule without a
+# passing fixture never reaches users.
+name: Semgrep Rules
+
+on:
+  pull_request:
+    paths:
+      - 'skills/vulnerability-scan/rules/**'
+      - 'docs/examples/semgrep-rule.yml'
+      - '.github/workflows/semgrep-rules.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'skills/vulnerability-scan/rules/**'
+      - 'docs/examples/semgrep-rule.yml'
+      - '.github/workflows/semgrep-rules.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  rules:
+    name: Semgrep rule tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install Semgrep
+        # Supply chain: pin the version (never latest) — same as the harness template.
+        run: pip install semgrep==1.162.0
+
+      - name: Test shared rules against their fixtures
+        run: semgrep --test --metrics=off skills/vulnerability-scan/rules
+
+      - name: Validate shared rules and the documented example
+        run: |
+          semgrep --validate --metrics=off --config skills/vulnerability-scan/rules
+          semgrep --validate --metrics=off --config docs/examples/semgrep-rule.yml

@@ -77,9 +77,17 @@ jobs:
 
       - name: Run Semgrep
         run: |
+          # Custom rules join the scan only when they exist: project rules in
+          # .semgrep/rules/ and maruda's shared rules in .semgrep/maruda/.
+          # Semgrep fails on a --config directory that holds no rules.
+          extra=()
+          if find .semgrep -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | grep -q .; then
+            extra=(--config .semgrep)
+          fi
           semgrep \
             --config p/security-audit \
             --config p/owasp-top-ten \
 {{SEMGREP_LANG_CONFIGS}}
+            ${extra[@]+"${extra[@]}"} \
             .
 {{NODE_AUDIT_JOB}}
