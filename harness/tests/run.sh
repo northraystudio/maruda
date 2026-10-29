@@ -8,9 +8,11 @@ SETUP="$ROOT/harness/scripts/setup.sh"
 HOOKS="$ROOT/harness/templates/hooks"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-# ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore + maruda's shared Semgrep rule files
+# ci.yml, security-scan.yml, .gitleaks.toml, .semgrepignore + maruda's shared Semgrep rules
+# (rule files only — fixtures are not shipped, #37)
 SHARED_RULES="$ROOT/skills/vulnerability-scan/rules"
-CI_FILES=$((4 + $(find "$SHARED_RULES" -maxdepth 1 -type f | wc -l)))
+shared_rule_files() { find "$SHARED_RULES" -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) ! -name '*.test.yml' ! -name '*.test.yaml'; }
+CI_FILES=$((4 + $(shared_rule_files | wc -l)))
 
 PASS=0
 FAIL=0
@@ -98,8 +100,11 @@ if python3 -c 'import yaml' >/dev/null 2>&1; then
 fi
 
 # ── Custom Semgrep rules (#27) ──────────────
+check "rules: shared rules exist to ship" "[[ -n \"\$(shared_rule_files)\" ]]"
 check "rules: shared rules copied to .semgrep/maruda" \
-  "diff -r '$SHARED_RULES' '$WORK/full/.semgrep/maruda'"
+  "(for r in \$(shared_rule_files); do cmp -s \"\$r\" '$WORK/full/.semgrep/maruda/'\"\$(basename \"\$r\")\" || exit 1; done)"
+check "rules: only rule files ship (no fixtures)" \
+  "[[ \$(ls '$WORK/full/.semgrep/maruda' | wc -l) -eq \$(shared_rule_files | wc -l) ]]"
 check "rules: .semgrepignore excludes rule fixtures" "grep -qx '.semgrep/' '$WORK/full/.semgrepignore'"
 check "rules: checklist asks to commit .semgrep/"   "grep -q '\`.semgrep/\`' '$WORK/full/docs/harness-checklist.md'"
 # Run the generated "Run Semgrep" step with a stub semgrep that prints its args:
@@ -117,6 +122,11 @@ if python3 -c 'import yaml' >/dev/null 2>&1; then
   check "rules: CI step passes .semgrep when rules exist" "mkdir -p '$WORK/sg-rules' && cp -r '$WORK/full/.semgrep' '$WORK/sg-rules/' && sg_args '$WORK/sg-rules' | grep -q -- '--config .semgrep'"
   check "rules: CI step omits .semgrep with no dir"       "sg_omits '$WORK/sg-none'"
   check "rules: CI step omits .semgrep when dir is empty" "sg_omits '$WORK/sg-empty'"
+  # Semgrep's loader skips *.test.y*ml fixtures; counting them would pass a
+  # --config with no rules and fail the job with exit 7 (#37).
+  mkdir -p "$WORK/sg-fixtures/.semgrep/rules"
+  touch "$WORK/sg-fixtures/.semgrep/rules/x.test.yaml" "$WORK/sg-fixtures/.semgrep/rules/y.test.yml" "$WORK/sg-fixtures/.semgrep/rules/x.ts"
+  check "rules: CI step omits .semgrep with fixtures only" "sg_omits '$WORK/sg-fixtures'"
   # #34: the Semgrep job is a hard gate — a finding must fail the step.
   check "gate: semgrep step fails on a finding"     "! (SG_FINDINGS=1 sg_args '$WORK/sg-none')"
   check "gate: semgrep step passes with no finding" "SG_FINDINGS=0 sg_args '$WORK/sg-none'"
