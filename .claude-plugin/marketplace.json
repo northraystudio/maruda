@@ -12,7 +12,7 @@
     {
       "name": "maruda",
       "description": "AI with a harness. Agent skills, rules, CI and security gates for AI-assisted development — a diagnose → issue → plan → resolve ⇄ verify loop, shipped as one harness.",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": {
         "name": "NorthRay Studio"
       },
