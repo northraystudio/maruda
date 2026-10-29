@@ -5,12 +5,13 @@ registry rules plus two sets of custom rules, when they exist:
 
 | Set | Where | Who writes it |
 |-----|-------|---------------|
-| **maruda shared rules** | `skills/vulnerability-scan/rules/` in this repository; `setup.sh` copies them into `.semgrep/maruda/` of the target project | maruda, via PR |
+| **maruda shared rules** | `skills/vulnerability-scan/rules/` in this repository; `setup.sh` copies the rule files — not their fixtures — into `.semgrep/maruda/` of the target project | maruda, via PR |
 | **Project rules** | `.semgrep/rules/` in the target project | the project — by hand, or through `/maruda:rule-proposer` |
 
 With neither present the scan is exactly the registry scan. Semgrep fails on a
 `--config` directory with no rules, so both the skill and the workflow pass
-`--config .semgrep` only when it holds a rule file.
+`--config .semgrep` only when it holds a rule file — a `*.yml` / `*.yaml` that
+is not a `*.test.yml` / `*.test.yaml` fixture, which Semgrep's loader skips.
 
 ## Conventions
 

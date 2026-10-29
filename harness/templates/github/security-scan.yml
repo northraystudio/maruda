@@ -79,9 +79,11 @@ jobs:
         run: |
           # Custom rules join the scan only when they exist: project rules in
           # .semgrep/rules/ and maruda's shared rules in .semgrep/maruda/.
-          # Semgrep fails on a --config directory that holds no rules.
+          # Semgrep fails on a --config directory that holds no rules, and its
+          # loader skips *.test.yml / *.test.yaml fixtures, so they do not count.
+          # Same check as has_rules() in maruda's vulnerability-scan SKILL.md — change both together.
           extra=()
-          if find .semgrep -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | grep -q .; then
+          if find .semgrep -type f \( -name '*.yml' -o -name '*.yaml' \) ! -name '*.test.yml' ! -name '*.test.yaml' 2>/dev/null | grep -q .; then
             extra=(--config .semgrep)
           fi
           # --error: exit 1 on any finding. Without it semgrep exits 0 and the

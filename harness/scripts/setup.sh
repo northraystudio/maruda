@@ -757,10 +757,13 @@ else
   rm -f "$tmp_wf"
   install_file "$TEMPLATES/github/gitleaks.toml" "$TARGET/.gitleaks.toml"; ci_count
   install_file "$TEMPLATES/github/semgrepignore" "$TARGET/.semgrepignore"; ci_count
-  # maruda's shared Semgrep rules (and their fixtures) ship with the
-  # vulnerability-scan skill; CI picks them up from .semgrep/maruda/.
-  for rule_file in "$SHARED_RULES"/*; do
+  # maruda's shared Semgrep rules ship with the vulnerability-scan skill; CI
+  # picks them up from .semgrep/maruda/. Only rule files are copied: fixtures
+  # stay in maruda (tested by semgrep-rules.yml), so a project's own linters,
+  # tests and gitleaks never see the intentionally vulnerable code.
+  for rule_file in "$SHARED_RULES"/*.yml "$SHARED_RULES"/*.yaml; do
     [[ -f "$rule_file" ]] || continue  # a checkout without skills/ ships no shared rules
+    case "$rule_file" in *.test.yml|*.test.yaml) continue ;; esac  # a YAML fixture, not a rule
     mkdir -p "$TARGET/.semgrep/maruda"
     install_file "$rule_file" "$TARGET/.semgrep/maruda/$(basename "$rule_file")"; ci_count
   done
