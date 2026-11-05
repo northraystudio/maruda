@@ -147,22 +147,24 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/trivy"
 mkdir -p "$CACHE"            # create it as the user, before docker creates it as root
 OUT="$(mktemp -d)"
 
-# Lockfiles — once per lockfile in scope, so each one maps to one coverage row
+# Lockfiles — one scan per scan root: the path, plus the workspace root if Step 1.2 expanded it.
+# Scan the directory, not single files: Trivy reads the manifests beside each lockfile
+# (package.json for yarn/npm dev classification, composer.json, go.sum for old go.mod).
 docker run --rm \
   -v "$REPO_ROOT:/src:ro" -v "$CACHE:/root/.cache/trivy" \
-  "$TRIVY_IMAGE" fs --scanners vuln --list-all-pkgs --format json --quiet \
+  "$TRIVY_IMAGE" fs --scanners vuln --list-all-pkgs --format json --debug \
   --skip-dirs '**/node_modules' --skip-dirs '**/vendor' \
-  "/src/<lockfile-path>" > "$OUT/<n>.json" 2> "$OUT/<n>.err"
+  "/src/<scan-root>" > "$OUT/<n>.json" 2> "$OUT/<n>.err"
 
 # A named image that exists locally: export it, scan the tarball (no docker socket in the scanner)
 docker save "<image>" -o "$OUT/image-<n>.tar"
 docker run --rm -v "$OUT:/out:ro" -v "$CACHE:/root/.cache/trivy" \
-  "$TRIVY_IMAGE" image --scanners vuln --list-all-pkgs --format json --quiet \
+  "$TRIVY_IMAGE" image --scanners vuln --list-all-pkgs --format json --debug \
   --input "/out/image-<n>.tar" > "$OUT/image-<n>.json" 2> "$OUT/image-<n>.err"
 
 # A named image that is only in a registry
 docker run --rm -v "$CACHE:/root/.cache/trivy" \
-  "$TRIVY_IMAGE" image --scanners vuln --list-all-pkgs --format json --quiet \
+  "$TRIVY_IMAGE" image --scanners vuln --list-all-pkgs --format json --debug \
   --image-src remote "<image>" > "$OUT/image-<n>.json" 2> "$OUT/image-<n>.err"
 ```
 
@@ -170,13 +172,23 @@ With the local binary, run the same subcommands and flags directly. **No severit
 `--ignore-unfixed`** — the report keeps every severity, including `UNKNOWN` and advisories with
 no fix; prioritization happens in Step 5, not by dropping data.
 
-Per target, a non-zero exit, a parse error in the output, a timeout, or a Trivy message that the
-file was not analyzed makes that row **not run**, quoting the `FATAL`/`ERROR` line from the
-`.err` file. Execution failure and "no vulnerabilities" are different rows and never merge.
+### Match every target to a result — a missing result is "not run"
 
-Pass each lockfile as a file, so each maps to exactly one Coverage row. The one exception is a
-`go.mod` whose `go` directive is below 1.17: Trivy then needs `go.sum` beside it, so pass the
-directory and keep only that module's result from the output.
+Trivy 0.76.1 exits 0 and simply omits a lockfile it failed to parse; the failure appears only as a
+`DEBUG  Walk error  file_path="…"` line. Exit status alone therefore cannot prove a scan. For each
+lockfile enumerated in Step 1:
+
+| What the output shows | Coverage row |
+|-----------------------|--------------|
+| a `Results[]` entry whose `Target` is that lockfile, with `Packages` | **scanned** (package count from `Packages`) |
+| no matching entry, and a `Walk error` / `ERROR` / `FATAL` line naming the file | **not run** — quote that line |
+| no matching entry and no error line | **not run** — "Trivy returned no result for this file" (never "0 vulnerabilities") |
+
+A non-zero exit, unparsable JSON, a timeout, or a `FATAL` line makes every target of that scan
+**not run** with the quoted line. An image is scanned only if its result has `Metadata` with the
+digest and at least one `Results[]` entry. Results for files outside the scope (nested projects the
+directory walk also found) are dropped, not reported. Execution failure and "no vulnerabilities"
+are different rows and never merge.
 
 From each result record: package count (`Packages`), and per vulnerability the
 `VulnerabilityID`, `VendorIDs` (GHSA etc.), `PkgName`, `InstalledVersion`, `FixedVersion`,
@@ -373,7 +385,7 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 Ask only when a user called this skill directly; a calling skill gets the paths back instead.
 
 When called from `vulnerability-scan`, return the report path and the JSON summary; that skill
-copies the counts. When called from `gh-issue-resolver`, run once on the base and once on the
+copies the counts only when the status is `complete`. When called from `gh-issue-resolver`, run once on the base and once on the
 head **in the same session**, the second run with `--skip-db-update`, so both use the same
 database and show the same `UpdatedAt` — an advisory published in between must not be blamed on
 the diff. This is the only case where `--skip-db-update` is used without an explicit offline
