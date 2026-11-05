@@ -14,7 +14,7 @@ every skill emits.
 
 | Step | Skill | What happens |
 | --- | --- | --- |
-| **Diagnose** | `software-evaluation`, `vulnerability-scan`, `data-validation` | Evaluate code quality, security, and data correctness. The first two produce reports + JSON summaries; `data-validation` is session-output only by design |
+| **Diagnose** | `software-evaluation`, `vulnerability-scan`, `dependency-audit`, `data-validation` | Evaluate code quality, security, dependency vulnerabilities, and data correctness. The first three produce reports + JSON summaries; `data-validation` is session-output only by design |
 | **Visualize** | `progress-dashboard` | Generate an interactive HTML dashboard from JSON summaries to track improvement trends |
 | **Triage DAST** | `sakuda-triage` | Pull [sakuda](https://github.com/northraystudio/sakuda) findings through its MCP, follow each into the source, and decide confirmed / false-positive / accepted with `file:line`. The report uses the security-audit format, so `report-to-issues` files the confirmed ones; verdicts go back to sakuda after approval |
 | **Codify** | `rule-proposer` | Turn confirmed findings into Semgrep rules (fixture-tested, measured on the repository) so the scan catches them next time; findings that need business knowledge are left to manual review. Writes `.semgrep/rules/` only after approval |
@@ -41,7 +41,9 @@ loop. After opening the PR, `gh-issue-resolver`:
 
 1. Re-runs whichever diagnoses the diff triggers (`data-validation` for schema,
    model, query or fixture changes; `vulnerability-scan` for auth, input
-   handling, queries, file paths, outbound requests or dependencies;
+   handling, queries, file paths or outbound requests; `dependency-audit` for
+   manifests, lockfiles, workspace config or image references — run on the base
+   and the head back to back against the same vulnerability database;
    `software-evaluation` when the Issue came from it), passing the base branch
    as the baseline.
 2. Classifies every finding: **regression** (passes on the base, fails now),
@@ -89,7 +91,20 @@ Branch protection does not apply to `epic/**` by design: the gate is that PR.
   roadmap with P0–P3 action items, and a JSON summary for the dashboard.
 - `vulnerability-scan` — Combines automated Semgrep scanning with a manual
   review checklist covering OWASP Top 10. Triages true positives from false
-  positives, includes a dependency CVE audit, and emits a JSON summary.
+  positives, delegates the dependency audit to `dependency-audit`, and emits a
+  JSON summary.
+- `dependency-audit` — Scans the lockfiles under a path (plus the workspace
+  root lockfile that owns them) and explicitly named container images with a
+  version- and digest-pinned Trivy, the same scanner as the CI dependency job.
+  `pnpm audit` / `npm audit` and `govulncheck` are added only where Trivy cannot
+  see, and only if already installed. Every target is recorded as scanned / not
+  run / excluded with the reason, the scanner version and the database date — a
+  target that could not be scanned never reads as zero findings. Reachability
+  is `reachable` only with govulncheck evidence, otherwise `unknown`; context
+  (dev, image-bundled) explains a finding but never removes it. Writes
+  `docs/dependency-audit/[target].YYYYMMDD.md` in the security-audit format
+  (one `V-XX` per package upgrade) and a JSON summary. Never installs, upgrades,
+  regenerates a lockfile, or builds an image.
 - `data-validation` — Checks record counts, NULL rates (including empty
   strings, zero values, and sentinels), value distribution, uniqueness,
   referential integrity, and format validity. Reads only from the project's
@@ -185,6 +200,7 @@ Describe the task and the matching skill is applied:
 "Generate a spec for src/api/"                                → spec-doc
 "Review the code quality of src/backend/"                     → software-evaluation
 "Scan src/ for security vulnerabilities"                      → vulnerability-scan
+"Audit the dependencies" / "依存の脆弱性を調べて"                  → dependency-audit
 "Check the data quality of db/" / "データ検証して" / "NULL率を調べて" → data-validation
 "Create GitHub Issues from docs/evaluation/myapp.20260406.md" → report-to-issues
 "Triage the sakuda findings" / "sakudaの検出を精査して"          → sakuda-triage (needs sakuda's MCP)

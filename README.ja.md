@@ -67,13 +67,14 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 
 ## 何が手に入るか
 
-スキルは 13 個。診断系は**読み取り専用**で、証拠を出すだけでコードやデータを
+スキルは 14 個。診断系は**読み取り専用**で、証拠を出すだけでコードやデータを
 書き換えません。
 
 | スキル | 何をするか |
 | --- | --- |
 | [software-evaluation](skills/software-evaluation/SKILL.md) | 5 つの柱（アーキテクチャ / 信頼性 / 可観測性 / セキュリティ / DX）でコード品質を採点し、1〜10 のスコアカードとロードマップを出す |
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | Semgrep を使った OWASP ベースのセキュリティ監査。深刻度と修正方針付き |
+| [dependency-audit](skills/dependency-audit/SKILL.md) | 版を固定した Trivy で、ロックファイルと指定したコンテナイメージの既知の脆弱性を調べる。見た範囲を残し、見られなかったものは 0 件ではなく「未実施」と書く |
 | [data-validation](skills/data-validation/SKILL.md) | 自前のフィクスチャか明示的に設定した非本番接続を読み、件数・NULL 率・分布・一意性・参照整合性・書式を検証する |
 | [spec-doc](skills/spec-doc/SKILL.md) | コードから「生きた仕様書」を生成・同期し、ドキュメントと実装の乖離をなくす |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | 品質スコアとセキュリティ指摘の推移を見る HTML ダッシュボード |
@@ -92,7 +93,7 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 
 ```mermaid
 graph LR
-    Diagnose["🔍 診断<br/>software-evaluation<br/>vulnerability-scan<br/>data-validation"]
+    Diagnose["🔍 診断<br/>software-evaluation<br/>vulnerability-scan<br/>dependency-audit<br/>data-validation"]
     Visualize["📊 可視化<br/>progress-dashboard"]
     Register["📋 Issue 登録<br/>report-to-issues"]
     Draft["✍️ Issue 起票<br/>gh-issue-drafter"]
@@ -209,6 +210,7 @@ claude plugin update maruda@northraystudio        # 次に plugin
 ```
 /maruda:software-evaluation src/backend/
 /maruda:vulnerability-scan src/
+/maruda:dependency-audit .
 /maruda:data-validation db/
 /maruda:spec-doc src/
 /maruda:progress-dashboard
