@@ -548,16 +548,17 @@ const SECURITY_DATA = [
   });
 
   /* ---- dependency chart ---- */
+  // `dependencies` is absent when the dependency audit did not complete: null leaves a gap, never a 0.
   const depLabels = SECURITY_DATA.map(d => formatDate(d.date));
   new Chart(document.getElementById('deps-chart'), {
     type: 'bar',
     data: {
       labels: depLabels,
       datasets: [
-        { label: 'Critical', data: SECURITY_DATA.map(d => d.dependencies.critical), backgroundColor: '#dc2626' },
-        { label: 'High',     data: SECURITY_DATA.map(d => d.dependencies.high),     backgroundColor: '#f97316' },
-        { label: 'Medium',   data: SECURITY_DATA.map(d => d.dependencies.medium),   backgroundColor: '#eab308' },
-        { label: 'Low',      data: SECURITY_DATA.map(d => d.dependencies.low),      backgroundColor: '#3b82f6' }
+        { label: 'Critical', data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.critical : null), backgroundColor: '#dc2626' },
+        { label: 'High',     data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.high : null),     backgroundColor: '#f97316' },
+        { label: 'Medium',   data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.medium : null),   backgroundColor: '#eab308' },
+        { label: 'Low',      data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.low : null),      backgroundColor: '#3b82f6' }
       ]
     },
     options: {
