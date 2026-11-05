@@ -172,21 +172,31 @@ With the local binary, run the same subcommands and flags directly. **No severit
 `--ignore-unfixed`** — the report keeps every severity, including `UNKNOWN` and advisories with
 no fix; prioritization happens in Step 5, not by dropping data.
 
-### Match every target to a result — a missing result is "not run"
+### Match every target to a result — a missing or partial result is not "scanned"
 
-Trivy 0.76.1 exits 0 and simply omits a lockfile it failed to parse; the failure appears only as a
-`DEBUG  Walk error  file_path="…"` line. Exit status alone therefore cannot prove a scan. For each
-lockfile enumerated in Step 1:
+Trivy 0.76.1 exits 0 when an analyzer fails: it omits the file (or, in an image, the analyzer's
+packages) and logs the failure only at debug level — `Walk error file_path="…"` or
+`Analysis error …`. Exit status alone therefore cannot prove a scan. Call any `Walk error`,
+`Analysis error`, `ERROR` or `FATAL` line in the `.err` file an **error line**.
+
+For each lockfile enumerated in Step 1:
 
 | What the output shows | Coverage row |
 |-----------------------|--------------|
-| a `Results[]` entry whose `Target` is that lockfile, with `Packages` | **scanned** (package count from `Packages`) |
-| no matching entry, and a `Walk error` / `ERROR` / `FATAL` line naming the file | **not run** — quote that line |
+| a `Results[]` entry whose `Target` is that lockfile, with `Packages`, and no error line naming the file | **scanned** (package count from `Packages`) |
+| a matching entry **and** an error line naming the file | **incomplete** — quote the line |
+| no matching entry, and an error line naming the file | **not run** — quote that line |
 | no matching entry and no error line | **not run** — "Trivy returned no result for this file" (never "0 vulnerabilities") |
 
+For each named image: **scanned** only when the result has `Metadata` with the digest, at least
+one `Results[]` entry, and **no error line at all** in its `.err`; with `Metadata` and results but
+an error line it is **incomplete** (quote the line); otherwise **not run**.
+
+An **incomplete** target's findings are real: list and prioritize them as usual, but the target
+does not count as scanned, so the run's status is at best `partial`.
+
 A non-zero exit, unparsable JSON, a timeout, or a `FATAL` line makes every target of that scan
-**not run** with the quoted line. An image is scanned only if its result has `Metadata` with the
-digest and at least one `Results[]` entry. Results for files outside the scope (nested projects the
+**not run** with the quoted line. Results for files outside the scope (nested projects the
 directory walk also found) are dropped, not reported. Execution failure and "no vulnerabilities"
 are different rows and never merge.
 
@@ -275,7 +285,8 @@ the date is the local date of the run — timestamps from Trivy stay in UTC and 
 
 Counting rules, used by both the report and the JSON:
 - **Targets** are lockfiles and named images. Status is `complete` when every target was
-  scanned, `partial` when some were not run, `not run` when none were.
+  scanned, `partial` when some were incomplete or not run, `not run` when none were scanned or
+  incomplete. `coverage.notRun` counts both incomplete and not-run targets.
 - Image candidates (a `Dockerfile` with no image named) and exclusion rows are **not** targets:
   they never make a run partial. `coverage.excluded` counts exclusion rows.
 - **Location** is `file:line` when Trivy reports a line (`Locations[].StartLine`), else the file.
@@ -289,7 +300,7 @@ Counting rules, used by both the report and the JSON:
 
 ## Summary
 
-**Status:** complete | partial (N of M targets not run) | not run
+**Status:** complete | partial (N of M targets incomplete or not run) | not run
 **Advisories:** Critical N · High N · Medium N · Low N · Unknown N  (scanned targets only; "not counted — audit not run" when none ran)
 **Upgrades to schedule:** P0 N · P1 N  ("not counted — audit not run" when none ran)
 
@@ -370,7 +381,7 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 ## Step 7: Quality gate
 
 - [ ] Every lockfile in scope, every named image, and every exclusion has a Coverage row
-- [ ] Every "not run" row says why; no failed target is counted as zero findings
+- [ ] Every "not run" or "incomplete" row quotes why; no failed or partial analysis is counted as a clean scan
 - [ ] Scanner version, how it ran (container / local), and DB `UpdatedAt` are in the header
 - [ ] A workspace scope expansion, if any, is stated
 - [ ] No severity filter and no `--ignore-unfixed` were applied

@@ -549,7 +549,7 @@ const SECURITY_DATA = [
 
   /* ---- dependency chart ---- */
   // `dependencies` is absent when the dependency audit did not complete: null leaves a gap, never a 0.
-  const depLabels = SECURITY_DATA.map(d => formatDate(d.date));
+  const depLabels = SECURITY_DATA.map(d => d.dependencies ? formatDate(d.date) : formatDate(d.date) + ' (unavailable)');
   new Chart(document.getElementById('deps-chart'), {
     type: 'bar',
     data: {

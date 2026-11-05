@@ -84,8 +84,9 @@ The HTML must include these sections:
 - Latest dependency vulnerability counts (Critical/High/Medium/Low)
 - Trend if multiple scans exist
 - `dependencies` is optional: a vulnerability-scan JSON omits it when its dependency audit was
-  partial or did not run. Show that scan as "unavailable" (a gap in the trend, "—" in the
-  latest panel) — never as 0, which would read as a clean audit
+  partial or did not run. Show that scan as "unavailable" (a gap in the trend labelled
+  "unavailable", "—" in the latest panel) — never as 0, and never as an unlabelled empty bar,
+  which would read as a clean audit
 
 #### 6. Summary Cards (Top Row)
 - **Overall Quality Score** — latest value with delta from previous
