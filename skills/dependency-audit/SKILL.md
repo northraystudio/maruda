@@ -72,19 +72,49 @@ Exclusions — always the same, always recorded in the coverage table:
 
 A dependency manifest with no lockfile (`package.json` alone, `pyproject.toml` without a lock)
 is a target of kind `manifest`, recorded as "not run — no lockfile; versions are not resolved".
-Do not generate one. A manifest is covered — and gets no row of its own — when a lockfile sits in
-the same directory, or when a workspace root lockfile owns it: an ancestor directory (up to the
-repository root) holding the workspace metadata listed in 1.2 together with its lockfile, e.g.
-`apps/web/package.json` under a root `pnpm-workspace.yaml` + `pnpm-lock.yaml`. This holds
-whether that lockfile was found by 1.2 or lies inside the path itself.
+Do not generate one. A manifest is covered — and gets no row of its own — only by a lockfile
+of its own ecosystem:
+
+| Manifest | Covered by |
+|----------|-----------|
+| `package.json` | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` |
+| `pyproject.toml` | `poetry.lock`, `uv.lock`, `pylock.toml` |
+| `Pipfile` | `Pipfile.lock` |
+| `Gemfile` | `Gemfile.lock` |
+| `composer.json` | `composer.lock` |
+| `Cargo.toml` | `Cargo.lock` |
+
+It is covered when such a lockfile sits in the same directory, or when a workspace lockfile
+owns it as defined in 1.2 (e.g. `apps/web/package.json` under a root `pnpm-workspace.yaml`
+listing `apps/*` + `pnpm-lock.yaml`). This holds whether that lockfile was found by 1.2 or
+lies inside the path itself. Any other lockfile covers nothing: `pyproject.toml` beside a
+`package-lock.json` is still "not run — no lockfile (`package-lock.json` is Node.js)", and so
+is `pyproject.toml` beside a `requirements.txt` — the two may list different dependencies.
 
 ### 1.2 The workspace root lockfile
 
 Walk up from the path to the repository root (never above it), starting with the path's parent.
-This runs even when the path has a lockfile of its own. If an ancestor holds workspace
-metadata (`pnpm-workspace.yaml`, `"workspaces"` in `package.json`, `go.work`,
-`[workspace]` in `Cargo.toml`, `[tool.uv.workspace]` in `pyproject.toml`) **and** the lockfile
-that owns the path, add that lockfile to the scope and record the expansion:
+This runs even when the path has a lockfile of its own. A lockfile in an ancestor **owns** a
+directory only when all of these hold:
+
+1. The ancestor holds workspace metadata, and the metadata, the lockfile and the directory's
+   manifest are of one ecosystem:
+
+   | Workspace metadata | Members listed in | Lockfile |
+   |--------------------|-------------------|----------|
+   | `pnpm-workspace.yaml` | `packages` | `pnpm-lock.yaml` |
+   | `"workspaces"` in `package.json` | the array, or `workspaces.packages` | `package-lock.json`, `yarn.lock`, `bun.lock` |
+   | `[workspace]` in `Cargo.toml` | `members` (minus `exclude`) | `Cargo.lock` |
+   | `[tool.uv.workspace]` in `pyproject.toml` | `members` (minus `exclude`) | `uv.lock` |
+   | `go.work` | `use` | — (each `go.mod` is its own target) |
+
+2. The directory, relative to the ancestor, matches a member glob and no exclusion
+   (`!pattern` in `packages` / `workspaces`, or `exclude`). `tools/cli` is not a member of
+   `packages: [apps/*]`, so a root `pnpm-lock.yaml` does not own it.
+
+If the metadata cannot be read or a glob cannot be decided, the lockfile does not own the
+directory — never assume membership. When a lockfile owns the path, add it to the scope and
+record the expansion:
 
 > Scope expanded: `pnpm-lock.yaml` at the repository root owns `apps/web` — scanned the whole
 > workspace lockfile; findings are not filtered to `apps/web`'s members.
@@ -340,7 +370,7 @@ Save as `docs/dependency-audit/[target].YYYYMMDD.md` (`[target]` as in `vulnerab
 the date is the local date of the run — timestamps from Trivy stay in UTC and say so).
 
 Counting rules, used by both the report and the JSON:
-- **Targets** are lockfiles, named images, and manifests no lockfile covers (Step 1.1). Status
+- **Targets** are lockfiles, named images, and manifests no lockfile of their own ecosystem covers (Step 1.1). Status
   is `complete` when every target was scanned, `partial` when some were incomplete or not run,
   `not run` when none were scanned or incomplete. `coverage.notRun` counts both incomplete and
   not-run targets. An uncovered manifest is always not run, so a run that has one is never
@@ -368,7 +398,8 @@ Counting rules, used by both the report and the JSON:
 |--------|------|--------|---------------|------|---------:|
 | `pnpm-lock.yaml` (repo root) | lockfile | scanned | scope expanded from `apps/web`; whole workspace | trivy 0.76.1 + pnpm audit 10.x | 812 |
 | `services/api/requirements.txt` | lockfile | scanned | direct dependencies only — transitive not visible | trivy 0.76.1 | 14 |
-| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved | — | — |
+| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved — not a member of the root workspace (`apps/*`) | — | — |
+| `services/ml/pyproject.toml` | manifest | not run | no lockfile (`package-lock.json` beside it is Node.js); versions are not resolved | — | — |
 | `services/api/Dockerfile` | image candidate | not scanned | no image named | — | — |
 | `ghcr.io/acme/api:1.4@sha256:…` (linux/amd64) | image, runtime | not run | vulnerability DB unavailable: <error> | trivy 0.76.1 | — |
 | `**/node_modules`, `**/vendor` | — | excluded | lockfile is the source of truth | — | — |
@@ -458,7 +489,7 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 
 ## Step 7: Quality gate
 
-- [ ] Every lockfile in scope, every manifest no lockfile covers, every named image, and every exclusion has a Coverage row
+- [ ] Every lockfile in scope, every manifest no lockfile of its own ecosystem covers (Step 1.1), every named image, and every exclusion has a Coverage row
 - [ ] Every "not run" or "incomplete" row quotes why; no failed or partial analysis is counted as a clean scan
 - [ ] Scanner version, how it ran (container / local), and DB `UpdatedAt` are in the header
 - [ ] A workspace scope expansion, if any, is stated
