@@ -455,9 +455,12 @@ const SKIPPED_FILES = [];
   Chart.defaults.borderColor = '#334155';
 
   /* ---- route summaries by `type`: anything else was skipped by the generator ---- */
-  const EVALS = EVALUATION_DATA.filter(d => d.type === 'software-evaluation');
-  const SCANS = SECURITY_DATA.filter(d => d.type === 'vulnerability-scan');
-  const AUDITS = DEPENDENCY_DATA.filter(d => d.type === 'dependency-audit');
+  // Date order is relied on below (latest, previous, default target): sort here rather than
+  // trust the embedding order, which may be grouped by target. The sort is stable.
+  const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const EVALS = EVALUATION_DATA.filter(d => d.type === 'software-evaluation').sort(byDate);
+  const SCANS = SECURITY_DATA.filter(d => d.type === 'vulnerability-scan').sort(byDate);
+  const AUDITS = DEPENDENCY_DATA.filter(d => d.type === 'dependency-audit').sort(byDate);
   const skippedCount = SKIPPED_FILES.length +
     (EVALUATION_DATA.length - EVALS.length) + (SECURITY_DATA.length - SCANS.length) + (DEPENDENCY_DATA.length - AUDITS.length);
 
@@ -602,7 +605,7 @@ const SKIPPED_FILES = [];
 
   /* ---- header & footer ---- */
   const allDates = [...EVALS, ...SCANS, ...AUDITS].map(d => d.date).sort();
-  const allTargets = targetsOf([...EVALS, ...SCANS, ...AUDITS].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)));
+  const allTargets = targetsOf([...EVALS, ...SCANS, ...AUDITS].sort(byDate));
   const generated = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   document.getElementById('header-meta').textContent = allTargets.length
     ? `${allTargets.length > 1 ? 'Targets' : 'Target'}: ${allTargets.join(', ')} | ${formatDate(allDates[0])} — ${formatDate(allDates[allDates.length - 1])} | Generated: ${generated}`
