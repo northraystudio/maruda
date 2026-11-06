@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0",
+  "type": "dependency-audit",
+  "date": "2026-06-01",
+  "target": "my-app",
+  "scope": ".",
+  "status": "not-run",
+  "notRunReason": "db-unavailable",
+  "scanner": { "name": "trivy", "version": "0.76.1", "pinned": true, "dbUpdatedAt": null },
+  "coverage": { "scanned": 0, "notRun": 3, "excluded": 1 }
+}

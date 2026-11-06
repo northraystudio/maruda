@@ -143,10 +143,12 @@ Branch protection does not apply to `epic/**` by design: the gate is that PR.
 
 ### Visualize
 
-- `progress-dashboard` — Reads JSON summaries from `software-evaluation` and
-  `vulnerability-scan`, then generates a self-contained HTML dashboard with
-  quality score trends, radar charts, security findings trends, roadmap
-  progress, and dependency risk panels. See
+- `progress-dashboard` — Reads JSON summaries from `software-evaluation`,
+  `vulnerability-scan` and `dependency-audit`, routed by `type`, then generates a
+  self-contained HTML dashboard with Quality, SAST and Dependency Audit tabs.
+  The dependency trend runs across the split: dates before `dependency-audit`
+  existed are back-filled from the scan's `dependencies`, and an audit that did
+  not run is a labelled gap, never 0. See
   [`examples/progress-dashboard/`](../examples/progress-dashboard/).
 
 ### Issues

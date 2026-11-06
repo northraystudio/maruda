@@ -148,6 +148,51 @@
       .charts-grid { grid-template-columns: 1fr; }
       body { padding: 1rem; }
     }
+
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 1.5rem;
+      overflow-x: auto;
+    }
+    .tab {
+      background: transparent;
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 0.5rem 0.5rem 0 0;
+      color: var(--text-muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.6rem 1.1rem;
+      white-space: nowrap;
+    }
+    .tab:hover { color: var(--text); }
+    .tab[aria-selected="true"] {
+      background: var(--card);
+      border-color: var(--card-border);
+      color: var(--text);
+      margin-bottom: -1px;
+    }
+    .tab:focus-visible,
+    .tab-panel:focus-visible {
+      outline: 2px solid var(--accent-overall);
+      outline-offset: 2px;
+    }
+    .tab-panel[hidden] { display: none; }
+
+    .card-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.25rem;
+    }
+    .panel-note {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.75rem;
+    }
   </style>
 </head>
 <body>
@@ -245,6 +290,36 @@ const SECURITY_DATA = [
     ]
   }
 ];
+
+// dependency-audit JSON summaries (docs/dependency-audit/*.json)
+const DEPENDENCY_DATA = [
+  {
+    "schemaVersion": "1.0",
+    "type": "dependency-audit",
+    "date": "2026-05-01",
+    "target": "my-app",
+    "scope": ".",
+    "status": "complete",
+    "scanner": { "name": "trivy", "version": "0.76.1", "pinned": true, "dbUpdatedAt": "2026-05-01T00:12:44Z" },
+    "coverage": { "scanned": 3, "notRun": 0, "excluded": 1 },
+    "vulnerabilities": { "critical": 0, "high": 1, "medium": 2, "low": 1, "unknown": 1 },
+    "remediation": { "p0": 0, "p1": 1 }
+  },
+  {
+    "schemaVersion": "1.0",
+    "type": "dependency-audit",
+    "date": "2026-06-01",
+    "target": "my-app",
+    "scope": ".",
+    "status": "not-run",
+    "notRunReason": "db-unavailable",
+    "scanner": { "name": "trivy", "version": "0.76.1", "pinned": true, "dbUpdatedAt": null },
+    "coverage": { "scanned": 0, "notRun": 3, "excluded": 1 }
+  }
+];
+
+// JSON files skipped because their `type` is unknown to this dashboard (file names only)
+const SKIPPED_FILES = [];
 </script>
 
 <!-- ===== HEADER ===== -->
@@ -253,55 +328,73 @@ const SECURITY_DATA = [
   <p id="header-meta"></p>
 </div>
 
-<!-- ===== SUMMARY CARDS ===== -->
-<div class="summary-cards" id="summary-cards"></div>
-
-<!-- ===== CHARTS ===== -->
-<div class="charts-grid">
-  <div class="chart-card">
-    <h2>Quality Score Trend</h2>
-    <div class="chart-container">
-      <canvas id="quality-trend-chart"></canvas>
-    </div>
-  </div>
-  <div class="chart-card">
-    <h2>Latest vs Previous (Radar)</h2>
-    <div class="chart-container">
-      <canvas id="radar-chart"></canvas>
-    </div>
-  </div>
-  <div class="chart-card">
-    <h2>Security Findings Trend</h2>
-    <div class="chart-container">
-      <canvas id="security-trend-chart"></canvas>
-    </div>
-  </div>
-  <div class="chart-card">
-    <h2>Roadmap & Remediation Progress</h2>
-    <div class="chart-container">
-      <canvas id="roadmap-chart"></canvas>
-    </div>
-  </div>
+<!-- ===== TABS ===== -->
+<div class="tabs" role="tablist" aria-label="Dashboard sections">
+  <button class="tab" role="tab" id="tab-quality" aria-controls="panel-quality" aria-selected="true" tabindex="0">Quality</button>
+  <button class="tab" role="tab" id="tab-sast" aria-controls="panel-sast" aria-selected="false" tabindex="-1">SAST</button>
+  <button class="tab" role="tab" id="tab-deps" aria-controls="panel-deps" aria-selected="false" tabindex="-1">Dependency Audit</button>
 </div>
 
-<!-- ===== DEPENDENCY RISK + LATEST FINDINGS TABLE ===== -->
-<div class="charts-grid">
-  <div class="chart-card">
-    <h2>Dependency Vulnerabilities</h2>
-    <div class="chart-container">
-      <canvas id="deps-chart"></canvas>
+<!-- ===== QUALITY (software-evaluation) ===== -->
+<section class="tab-panel" role="tabpanel" id="panel-quality" aria-labelledby="tab-quality" tabindex="0">
+  <div class="summary-cards" id="quality-cards"></div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>Quality Score Trend</h2>
+      <div class="chart-container"><canvas id="quality-trend-chart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Latest vs Previous (Radar)</h2>
+      <div class="chart-container"><canvas id="radar-chart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Roadmap Progress (P0 / P1)</h2>
+      <div class="chart-container"><canvas id="roadmap-chart"></canvas></div>
     </div>
   </div>
-  <div class="chart-card">
-    <h2>Latest Findings</h2>
-    <table class="findings-table" id="findings-table">
-      <thead>
-        <tr><th>ID</th><th>Title</th><th>Severity</th><th>Location</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+</section>
+
+<!-- ===== SAST (vulnerability-scan) ===== -->
+<section class="tab-panel" role="tabpanel" id="panel-sast" aria-labelledby="tab-sast" tabindex="0" hidden>
+  <div class="summary-cards" id="sast-cards"></div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>Security Findings Trend</h2>
+      <div class="chart-container"><canvas id="security-trend-chart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Remediation Progress (P0 / P1)</h2>
+      <div class="chart-container"><canvas id="remediation-chart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h2>Latest Findings</h2>
+      <table class="findings-table" id="findings-table">
+        <thead>
+          <tr><th>ID</th><th>Title</th><th>Severity</th><th>Location</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
-</div>
+</section>
+
+<!-- ===== DEPENDENCY AUDIT (dependency-audit, back-filled from vulnerability-scan) ===== -->
+<section class="tab-panel" role="tabpanel" id="panel-deps" aria-labelledby="tab-deps" tabindex="0" hidden>
+  <div class="summary-cards" id="deps-cards"></div>
+  <div class="charts-grid">
+    <div class="chart-card">
+      <h2>Dependency Vulnerabilities Trend</h2>
+      <div class="chart-container"><canvas id="deps-chart"></canvas></div>
+      <p class="panel-note">Dates without a dependency-audit summary use the <code>dependencies</code> counts
+        of that day's vulnerability-scan summary. "(not run)" and "(unavailable)" mark audits with no
+        counts — they are gaps, not zero findings. "(partial)" counts cover the scanned targets only.</p>
+    </div>
+    <div class="chart-card">
+      <h2>Dependency Remediation (P0 / P1)</h2>
+      <div class="chart-container"><canvas id="deps-remediation-chart"></canvas></div>
+    </div>
+  </div>
+</section>
 
 <div class="footer" id="footer"></div>
 
@@ -325,13 +418,18 @@ const SECURITY_DATA = [
     dx: 'DX'
   };
 
-  const chartDefaults = {
-    color: '#94a3b8',
-    borderColor: '#334155',
-    font: { family: '-apple-system, BlinkMacSystemFont, sans-serif' }
-  };
-  Chart.defaults.color = chartDefaults.color;
-  Chart.defaults.borderColor = chartDefaults.borderColor;
+  const SEVERITY_COLORS = { critical: '#dc2626', high: '#f97316', medium: '#eab308', low: '#3b82f6', unknown: '#64748b' };
+  const SEVERITY_BADGES = ['critical', 'high', 'medium', 'low'];
+
+  Chart.defaults.color = '#94a3b8';
+  Chart.defaults.borderColor = '#334155';
+
+  /* ---- route summaries by `type`: anything else was skipped by the generator ---- */
+  const EVALS = EVALUATION_DATA.filter(d => d.type === 'software-evaluation');
+  const SCANS = SECURITY_DATA.filter(d => d.type === 'vulnerability-scan');
+  const AUDITS = DEPENDENCY_DATA.filter(d => d.type === 'dependency-audit');
+  const skippedCount = SKIPPED_FILES.length +
+    (EVALUATION_DATA.length - EVALS.length) + (SECURITY_DATA.length - SCANS.length) + (DEPENDENCY_DATA.length - AUDITS.length);
 
   /* ---- helpers ---- */
   function formatDate(dateStr) {
@@ -340,7 +438,7 @@ const SECURITY_DATA = [
   }
 
   function deltaText(current, previous, invert) {
-    if (previous === undefined || previous === null) return { text: '—', cls: 'delta-neutral' };
+    if (previous === undefined || previous === null || current === null) return null;
     const diff = current - previous;
     if (diff === 0) return { text: '±0', cls: 'delta-neutral' };
     const sign = diff > 0 ? '+' : '';
@@ -351,244 +449,391 @@ const SECURITY_DATA = [
     };
   }
 
-  /* ---- header ---- */
-  const allDates = [...EVALUATION_DATA, ...SECURITY_DATA].map(d => d.date).sort();
-  const target = (EVALUATION_DATA[0] || SECURITY_DATA[0]).target;
-  document.getElementById('header-meta').textContent =
-    `Target: ${target} | ${formatDate(allDates[0])} — ${formatDate(allDates[allDates.length - 1])} | Generated: ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-
-  /* ---- summary cards ---- */
-  const latestEval = EVALUATION_DATA[EVALUATION_DATA.length - 1];
-  const prevEval = EVALUATION_DATA.length > 1 ? EVALUATION_DATA[EVALUATION_DATA.length - 2] : null;
-  const latestSec = SECURITY_DATA[SECURITY_DATA.length - 1];
-  const prevSec = SECURITY_DATA.length > 1 ? SECURITY_DATA[SECURITY_DATA.length - 2] : null;
-
-  const cards = [
-    {
-      label: 'Overall Quality',
-      value: latestEval ? latestEval.scores.overall.toFixed(1) : '—',
-      delta: latestEval && prevEval ? deltaText(latestEval.scores.overall, prevEval.scores.overall, false) : null,
-      color: COLORS.overall
-    },
-    {
-      label: 'Total Vulnerabilities',
-      value: latestSec ? latestSec.findings.total : '—',
-      delta: latestSec && prevSec ? deltaText(latestSec.findings.total, prevSec.findings.total, true) : null,
-      color: '#f59e0b'
-    },
-    {
-      label: 'P0 Blockers',
-      value: latestEval ? latestEval.roadmap.p0 : '—',
-      delta: latestEval && prevEval ? deltaText(latestEval.roadmap.p0, prevEval.roadmap.p0, true) : null,
-      color: latestEval && latestEval.roadmap.p0 > 0 ? '#ef4444' : '#22c55e'
-    },
-    {
-      label: 'Security Score',
-      value: latestEval ? latestEval.scores.security + '/10' : '—',
-      delta: latestEval && prevEval ? deltaText(latestEval.scores.security, prevEval.scores.security, false) : null,
-      color: COLORS.security
-    }
-  ];
-
-  const cardsContainer = document.getElementById('summary-cards');
-  cards.forEach(c => {
-    const d = c.delta;
-    cardsContainer.innerHTML += `
-      <div class="card">
-        <div class="card-label">${c.label}</div>
-        <div class="card-value" style="color:${c.color}">${c.value}</div>
-        ${d ? `<div class="card-delta ${d.cls}">${d.text} from previous</div>` : ''}
-      </div>`;
-  });
-
-  /* ---- quality trend chart ---- */
-  const evalDates = EVALUATION_DATA.map(d => formatDate(d.date));
-  const pillarKeys = Object.keys(PILLAR_LABELS);
-
-  const trendDatasets = pillarKeys.map(key => ({
-    label: PILLAR_LABELS[key],
-    data: EVALUATION_DATA.map(d => d.scores[key]),
-    borderColor: COLORS[key],
-    backgroundColor: COLORS[key] + '33',
-    tension: 0.3,
-    pointRadius: 5,
-    pointHoverRadius: 7
-  }));
-  trendDatasets.push({
-    label: 'Overall',
-    data: EVALUATION_DATA.map(d => d.scores.overall),
-    borderColor: COLORS.overall,
-    backgroundColor: COLORS.overall + '33',
-    borderWidth: 3,
-    tension: 0.3,
-    pointRadius: 5,
-    pointHoverRadius: 7
-  });
-
-  new Chart(document.getElementById('quality-trend-chart'), {
-    type: 'line',
-    data: { labels: evalDates, datasets: trendDatasets },
-    options: {
-      responsive: true,
-      scales: {
-        y: { min: 0, max: 10, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } },
-        x: { grid: { color: '#1e293b' } }
-      },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
-    }
-  });
-
-  /* ---- radar chart ---- */
-  const radarLabels = pillarKeys.map(k => PILLAR_LABELS[k]);
-  const radarDatasets = [];
-  if (latestEval) {
-    radarDatasets.push({
-      label: 'Current (' + formatDate(latestEval.date) + ')',
-      data: pillarKeys.map(k => latestEval.scores[k]),
-      borderColor: COLORS.overall,
-      backgroundColor: COLORS.overall + '33',
-      pointBackgroundColor: COLORS.overall
-    });
-  }
-  if (prevEval) {
-    radarDatasets.push({
-      label: 'Previous (' + formatDate(prevEval.date) + ')',
-      data: pillarKeys.map(k => prevEval.scores[k]),
-      borderColor: '#64748b',
-      backgroundColor: '#64748b22',
-      borderDash: [5, 5],
-      pointBackgroundColor: '#64748b'
-    });
-  }
-
-  new Chart(document.getElementById('radar-chart'), {
-    type: 'radar',
-    data: { labels: radarLabels, datasets: radarDatasets },
-    options: {
-      responsive: true,
-      scales: {
-        r: {
-          min: 0, max: 10, ticks: { stepSize: 2, backdropColor: 'transparent' },
-          grid: { color: '#334155' }, angleLines: { color: '#334155' },
-          pointLabels: { font: { size: 12 } }
-        }
-      },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
-    }
-  });
-
-  /* ---- security findings trend ---- */
-  const secDates = SECURITY_DATA.map(d => formatDate(d.date));
-  new Chart(document.getElementById('security-trend-chart'), {
-    type: 'bar',
-    data: {
-      labels: secDates,
-      datasets: [
-        { label: 'Critical', data: SECURITY_DATA.map(d => d.findings.critical), backgroundColor: '#dc2626' },
-        { label: 'High',     data: SECURITY_DATA.map(d => d.findings.high),     backgroundColor: '#f97316' },
-        { label: 'Medium',   data: SECURITY_DATA.map(d => d.findings.medium),   backgroundColor: '#eab308' },
-        { label: 'Low',      data: SECURITY_DATA.map(d => d.findings.low),      backgroundColor: '#3b82f6' }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: { stacked: true, grid: { color: '#1e293b' } },
-        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
-      },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
-    }
-  });
-
-  /* ---- roadmap & remediation chart ---- */
-  const combinedDates = [...new Set([...EVALUATION_DATA.map(d => d.date), ...SECURITY_DATA.map(d => d.date)])].sort();
-  const combinedLabels = combinedDates.map(formatDate);
-
   function findByDate(arr, date) { return arr.find(d => d.date === date); }
+  function last(arr) { return arr.length ? arr[arr.length - 1] : null; }
+  function prevOf(arr) { return arr.length > 1 ? arr[arr.length - 2] : null; }
 
-  new Chart(document.getElementById('roadmap-chart'), {
-    type: 'bar',
-    data: {
-      labels: combinedLabels,
-      datasets: [
-        {
-          label: 'Eval P0',
-          data: combinedDates.map(d => { const e = findByDate(EVALUATION_DATA, d); return e ? e.roadmap.p0 : null; }),
-          backgroundColor: '#dc262699'
-        },
-        {
-          label: 'Eval P1',
-          data: combinedDates.map(d => { const e = findByDate(EVALUATION_DATA, d); return e ? e.roadmap.p1 : null; }),
-          backgroundColor: '#f9731699'
-        },
-        {
-          label: 'Scan P0',
-          data: combinedDates.map(d => { const s = findByDate(SECURITY_DATA, d); return s ? s.remediation.p0 : null; }),
-          backgroundColor: '#dc2626',
-          borderWidth: 2,
-          borderColor: '#fca5a5'
-        },
-        {
-          label: 'Scan P1',
-          data: combinedDates.map(d => { const s = findByDate(SECURITY_DATA, d); return s ? s.remediation.p1 : null; }),
-          backgroundColor: '#f97316',
-          borderWidth: 2,
-          borderColor: '#fdba74'
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: { grid: { color: '#1e293b' } },
-        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
-      },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+  // Text only: summary strings never become HTML.
+  function addCard(containerId, card) {
+    const el = document.createElement('div');
+    el.className = 'card';
+    const label = document.createElement('div');
+    label.className = 'card-label';
+    label.textContent = card.label;
+    const value = document.createElement('div');
+    value.className = 'card-value';
+    value.style.color = card.color;
+    value.textContent = card.value;
+    el.append(label, value);
+    if (card.delta) {
+      const delta = document.createElement('div');
+      delta.className = 'card-delta ' + card.delta.cls;
+      delta.textContent = card.delta.text + ' from previous';
+      el.append(delta);
     }
-  });
-
-  /* ---- dependency chart ---- */
-  // `dependencies` is absent when the dependency audit did not complete: null leaves a gap, never a 0.
-  const depLabels = SECURITY_DATA.map(d => d.dependencies ? formatDate(d.date) : formatDate(d.date) + ' (unavailable)');
-  new Chart(document.getElementById('deps-chart'), {
-    type: 'bar',
-    data: {
-      labels: depLabels,
-      datasets: [
-        { label: 'Critical', data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.critical : null), backgroundColor: '#dc2626' },
-        { label: 'High',     data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.high : null),     backgroundColor: '#f97316' },
-        { label: 'Medium',   data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.medium : null),   backgroundColor: '#eab308' },
-        { label: 'Low',      data: SECURITY_DATA.map(d => d.dependencies ? d.dependencies.low : null),      backgroundColor: '#3b82f6' }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        x: { stacked: true, grid: { color: '#1e293b' } },
-        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#1e293b' } }
-      },
-      plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, padding: 16 } } }
+    if (card.note) {
+      const note = document.createElement('div');
+      note.className = 'card-note';
+      note.textContent = card.note;
+      el.append(note);
     }
-  });
+    document.getElementById(containerId).append(el);
+  }
 
-  /* ---- latest findings table ---- */
-  const tbody = document.querySelector('#findings-table tbody');
-  if (latestSec) {
-    latestSec.topFindings.forEach(f => {
-      const sevClass = f.severity.toLowerCase();
-      tbody.innerHTML += `
-        <tr>
-          <td>${f.id}</td>
-          <td>${f.title}</td>
-          <td><span class="severity-badge severity-${sevClass}">${f.severity}</span></td>
-          <td><code>${f.location}</code></td>
-        </tr>`;
+  const LEGEND = { position: 'bottom', labels: { usePointStyle: true, padding: 16 } };
+  const GRID = { color: '#1e293b' };
+
+  function stackedBar(canvasId, labels, datasets, footer) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: true, grid: GRID },
+          y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 }, grid: GRID }
+        },
+        plugins: { legend: LEGEND, tooltip: footer ? { callbacks: { footer } } : {} }
+      }
     });
   }
 
-  /* ---- footer ---- */
+  function groupedBar(canvasId, labels, datasets) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        scales: { x: { grid: GRID }, y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: GRID } },
+        plugins: { legend: LEGEND }
+      }
+    });
+  }
+
+  /* ---- dependency series: one point per target and date, from the source that owns it ----
+     A dependency-audit summary wins on its target and date. Others fall back to the
+     vulnerability-scan `dependencies` field so history from before the split stays
+     on the chart. A point without counts has `counts: null` — a labelled gap, never 0.
+     Targets are never merged: two targets scanned on one day are two points. */
+  function buildDependencySeries(audits, scans) {
+    const keyOf = d => d.date + '\u0000' + d.target;
+    const keys = [...new Set([...audits.map(keyOf), ...scans.map(keyOf)])].sort();
+    const multiTarget = new Set([...audits, ...scans].map(d => d.target)).size > 1;
+    return keys.map(key => {
+      const [date, target] = key.split('\u0000');
+      const prefix = multiTarget ? target + ' · ' : '';
+      const audit = audits.find(d => keyOf(d) === key);
+      if (audit) {
+        const hasCounts = (audit.status === 'complete' || audit.status === 'partial') && audit.vulnerabilities;
+        const suffix = audit.status === 'complete' ? '' :
+          audit.status === 'partial' ? ' (partial)' :
+          audit.status === 'not-run' ? ' (not run)' : ' (unavailable)';
+        return {
+          date,
+          target,
+          label: prefix + formatDate(date) + (hasCounts ? suffix : (suffix || ' (unavailable)')),
+          source: 'dependency-audit',
+          status: audit.status || 'unknown',
+          reason: audit.notRunReason || null,
+          counts: hasCounts ? audit.vulnerabilities : null,
+          remediation: hasCounts && audit.remediation ? audit.remediation : null,
+          scanner: audit.scanner || null,
+          coverage: audit.coverage || null
+        };
+      }
+      const scan = scans.find(d => keyOf(d) === key);
+      const deps = scan.dependencies;
+      return {
+        date,
+        target,
+        label: prefix + formatDate(date) + (deps ? '' : ' (unavailable)'),
+        source: 'vulnerability-scan',
+        status: deps ? 'complete' : 'unavailable',
+        reason: null,
+        // the older summaries carry no `unknown` severity: leave it empty, not 0
+        counts: deps ? { critical: deps.critical, high: deps.high, medium: deps.medium, low: deps.low, unknown: null } : null,
+        remediation: null,
+        scanner: null,
+        coverage: null
+      };
+    });
+  }
+
+  function countOrNull(p, key) { return p.counts ? p.counts[key] : null; }
+  function totalOf(p) {
+    if (!p.counts) return null;
+    return ['critical', 'high', 'medium', 'low', 'unknown'].reduce((s, k) => s + (p.counts[k] || 0), 0);
+  }
+
+  /* ---- header & footer ---- */
+  const allDates = [...EVALS, ...SCANS, ...AUDITS].map(d => d.date).sort();
+  const first = EVALS[0] || SCANS[0] || AUDITS[0];
+  const generated = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('header-meta').textContent = first
+    ? `Target: ${first.target} | ${formatDate(allDates[0])} — ${formatDate(allDates[allDates.length - 1])} | Generated: ${generated}`
+    : `No summaries found | Generated: ${generated}`;
+
   document.getElementById('footer').textContent =
-    `Generated by progress-dashboard skill | Data: ${EVALUATION_DATA.length} evaluations, ${SECURITY_DATA.length} security scans`;
+    `Generated by progress-dashboard skill | Data: ${EVALS.length} evaluations, ${SCANS.length} security scans, ` +
+    `${AUDITS.length} dependency audits` + (skippedCount ? ` | Skipped (unknown type): ${skippedCount}` : '');
+
+  /* ---- tab renderers: each runs once, when its panel is first shown ---- */
+  const renderers = {
+    quality: function () {
+      const latestEval = last(EVALS);
+      const prevEval = prevOf(EVALS);
+
+      addCard('quality-cards', {
+        label: 'Overall Quality',
+        value: latestEval ? latestEval.scores.overall.toFixed(1) : '—',
+        delta: latestEval && prevEval ? deltaText(latestEval.scores.overall, prevEval.scores.overall, false) : null,
+        color: COLORS.overall
+      });
+      addCard('quality-cards', {
+        label: 'P0 Blockers',
+        value: latestEval ? latestEval.roadmap.p0 : '—',
+        delta: latestEval && prevEval ? deltaText(latestEval.roadmap.p0, prevEval.roadmap.p0, true) : null,
+        color: latestEval && latestEval.roadmap.p0 > 0 ? '#ef4444' : '#22c55e'
+      });
+      addCard('quality-cards', {
+        label: 'Security Score',
+        value: latestEval ? latestEval.scores.security + '/10' : '—',
+        delta: latestEval && prevEval ? deltaText(latestEval.scores.security, prevEval.scores.security, false) : null,
+        color: COLORS.security
+      });
+
+      /* quality trend */
+      const evalDates = EVALS.map(d => formatDate(d.date));
+      const pillarKeys = Object.keys(PILLAR_LABELS);
+      const trendDatasets = pillarKeys.map(key => ({
+        label: PILLAR_LABELS[key],
+        data: EVALS.map(d => d.scores[key]),
+        borderColor: COLORS[key],
+        backgroundColor: COLORS[key] + '33',
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7
+      }));
+      trendDatasets.push({
+        label: 'Overall',
+        data: EVALS.map(d => d.scores.overall),
+        borderColor: COLORS.overall,
+        backgroundColor: COLORS.overall + '33',
+        borderWidth: 3,
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7
+      });
+      new Chart(document.getElementById('quality-trend-chart'), {
+        type: 'line',
+        data: { labels: evalDates, datasets: trendDatasets },
+        options: {
+          responsive: true,
+          scales: { y: { min: 0, max: 10, ticks: { stepSize: 1 }, grid: GRID }, x: { grid: GRID } },
+          plugins: { legend: LEGEND }
+        }
+      });
+
+      /* radar */
+      const radarDatasets = [];
+      if (latestEval) {
+        radarDatasets.push({
+          label: 'Current (' + formatDate(latestEval.date) + ')',
+          data: pillarKeys.map(k => latestEval.scores[k]),
+          borderColor: COLORS.overall,
+          backgroundColor: COLORS.overall + '33',
+          pointBackgroundColor: COLORS.overall
+        });
+      }
+      if (prevEval) {
+        radarDatasets.push({
+          label: 'Previous (' + formatDate(prevEval.date) + ')',
+          data: pillarKeys.map(k => prevEval.scores[k]),
+          borderColor: '#64748b',
+          backgroundColor: '#64748b22',
+          borderDash: [5, 5],
+          pointBackgroundColor: '#64748b'
+        });
+      }
+      new Chart(document.getElementById('radar-chart'), {
+        type: 'radar',
+        data: { labels: pillarKeys.map(k => PILLAR_LABELS[k]), datasets: radarDatasets },
+        options: {
+          responsive: true,
+          scales: {
+            r: {
+              min: 0, max: 10, ticks: { stepSize: 2, backdropColor: 'transparent' },
+              grid: { color: '#334155' }, angleLines: { color: '#334155' },
+              pointLabels: { font: { size: 12 } }
+            }
+          },
+          plugins: { legend: LEGEND }
+        }
+      });
+
+      /* roadmap (evaluation P0 / P1) */
+      groupedBar('roadmap-chart', evalDates, [
+        { label: 'Eval P0', data: EVALS.map(d => d.roadmap.p0), backgroundColor: '#dc262699' },
+        { label: 'Eval P1', data: EVALS.map(d => d.roadmap.p1), backgroundColor: '#f9731699' }
+      ]);
+    },
+
+    sast: function () {
+      const latestSec = last(SCANS);
+      const prevSec = prevOf(SCANS);
+
+      addCard('sast-cards', {
+        label: 'Total Vulnerabilities',
+        value: latestSec ? latestSec.findings.total : '—',
+        delta: latestSec && prevSec ? deltaText(latestSec.findings.total, prevSec.findings.total, true) : null,
+        color: '#f59e0b'
+      });
+      addCard('sast-cards', {
+        label: 'Remediation P0',
+        value: latestSec ? latestSec.remediation.p0 : '—',
+        delta: latestSec && prevSec ? deltaText(latestSec.remediation.p0, prevSec.remediation.p0, true) : null,
+        color: latestSec && latestSec.remediation.p0 > 0 ? '#ef4444' : '#22c55e'
+      });
+      addCard('sast-cards', {
+        label: 'False Positives',
+        value: latestSec ? latestSec.findings.falsePositives : '—',
+        color: '#94a3b8'
+      });
+
+      const secDates = SCANS.map(d => formatDate(d.date));
+      stackedBar('security-trend-chart', secDates, ['critical', 'high', 'medium', 'low'].map(k => ({
+        label: k[0].toUpperCase() + k.slice(1),
+        data: SCANS.map(d => d.findings[k]),
+        backgroundColor: SEVERITY_COLORS[k]
+      })));
+
+      groupedBar('remediation-chart', secDates, [
+        { label: 'Scan P0', data: SCANS.map(d => d.remediation.p0), backgroundColor: '#dc2626', borderWidth: 2, borderColor: '#fca5a5' },
+        { label: 'Scan P1', data: SCANS.map(d => d.remediation.p1), backgroundColor: '#f97316', borderWidth: 2, borderColor: '#fdba74' }
+      ]);
+
+      const tbody = document.querySelector('#findings-table tbody');
+      (latestSec ? latestSec.topFindings || [] : []).forEach(f => {
+        const tr = document.createElement('tr');
+        const id = document.createElement('td');
+        id.textContent = f.id;
+        const title = document.createElement('td');
+        title.textContent = f.title;
+        const sev = document.createElement('td');
+        const badge = document.createElement('span');
+        const sevKey = String(f.severity).toLowerCase();
+        badge.className = 'severity-badge' + (SEVERITY_BADGES.includes(sevKey) ? ' severity-' + sevKey : '');
+        badge.textContent = f.severity;
+        sev.append(badge);
+        const loc = document.createElement('td');
+        const code = document.createElement('code');
+        code.textContent = f.location;
+        loc.append(code);
+        tr.append(id, title, sev, loc);
+        tbody.append(tr);
+      });
+    },
+
+    deps: function () {
+      const series = buildDependencySeries(AUDITS, SCANS);
+      const latest = last(series);
+      // Compare and fall back only within the latest point's own target.
+      const sameTarget = latest ? series.filter(p => p.target === latest.target) : [];
+      const before = prevOf(sameTarget);
+      const lastCounted = last(sameTarget.filter(p => p.counts));
+      // Status, upgrades and scanner come from the newest audit itself: a later
+      // back-filled scan must not hide an audit that did not run.
+      const audit = last(AUDITS);
+      const auditPoint = audit ? series.find(p => p.source === 'dependency-audit' && p.date === audit.date && p.target === audit.target) : null;
+      // A delta only compares adjacent points that both have full counts.
+      const comparable = p => p && p.counts && p.status === 'complete';
+
+      addCard('deps-cards', {
+        label: 'Dependency Vulnerabilities',
+        value: latest && latest.counts ? totalOf(latest) : '—',
+        delta: comparable(latest) && comparable(before) ? deltaText(totalOf(latest), totalOf(before), true) : null,
+        color: '#f59e0b',
+        note: !latest ? null
+          : !latest.counts
+            ? (lastCounted ? `No counts on ${latest.label}. Last counted: ${formatDate(lastCounted.date)} (${totalOf(lastCounted)})` : `No counts on ${latest.label}`)
+            : [latest.label, 'source: ' + latest.source,
+               latest.status === 'partial' ? 'partial — scanned targets only' : null,
+               before && !comparable(before) ? 'no delta: previous point has no full counts' : null].filter(Boolean).join(' · ')
+      });
+      addCard('deps-cards', {
+        label: 'Latest Audit Status',
+        value: auditPoint ? auditPoint.status : 'no audit yet',
+        color: auditPoint && auditPoint.status === 'complete' ? '#22c55e' : '#f97316',
+        note: auditPoint
+          ? [auditPoint.label, auditPoint.reason, auditPoint.coverage ? `${auditPoint.coverage.scanned} scanned / ${auditPoint.coverage.notRun} not run` : null].filter(Boolean).join(' · ')
+          : 'Only back-filled vulnerability-scan counts are available'
+      });
+      addCard('deps-cards', {
+        label: 'Upgrades P0 / P1',
+        value: auditPoint && auditPoint.remediation ? `${auditPoint.remediation.p0} / ${auditPoint.remediation.p1}` : '—',
+        color: auditPoint && auditPoint.remediation && auditPoint.remediation.p0 > 0 ? '#ef4444' : '#94a3b8',
+        note: auditPoint ? auditPoint.label : null
+      });
+      addCard('deps-cards', {
+        label: 'Scanner',
+        value: auditPoint && auditPoint.scanner && auditPoint.scanner.version ? `${auditPoint.scanner.name} ${auditPoint.scanner.version}` : '—',
+        color: '#06b6d4',
+        note: auditPoint && auditPoint.scanner
+          ? [auditPoint.scanner.pinned ? 'pinned' : 'not pinned', 'DB ' + (auditPoint.scanner.dbUpdatedAt ? auditPoint.scanner.dbUpdatedAt.slice(0, 10) : 'unavailable')].join(' · ')
+          : null
+      });
+
+      const labels = series.map(p => p.label);
+      stackedBar('deps-chart', labels, ['critical', 'high', 'medium', 'low', 'unknown'].map(k => ({
+        label: k[0].toUpperCase() + k.slice(1),
+        data: series.map(p => countOrNull(p, k)),
+        backgroundColor: SEVERITY_COLORS[k]
+      })), items => 'Source: ' + series[items[0].dataIndex].source);
+
+      const remediated = series.filter(p => p.source === 'dependency-audit');
+      groupedBar('deps-remediation-chart', remediated.map(p => p.label), [
+        { label: 'Upgrade P0', data: remediated.map(p => p.remediation ? p.remediation.p0 : null), backgroundColor: '#dc2626', borderWidth: 2, borderColor: '#fca5a5' },
+        { label: 'Upgrade P1', data: remediated.map(p => p.remediation ? p.remediation.p1 : null), backgroundColor: '#f97316', borderWidth: 2, borderColor: '#fdba74' }
+      ]);
+    }
+  };
+
+  /* ---- tabs (WAI-ARIA tabs pattern: arrow keys, Home and End move and select) ---- */
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const rendered = {};
+
+  function select(tab) {
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute('aria-selected', String(on));
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    const key = tab.id.replace('tab-', '');
+    // charts are drawn only once their panel is visible, so Chart.js measures a real width
+    if (!rendered[key]) {
+      rendered[key] = true;
+      renderers[key]();
+    }
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab));
+    tab.addEventListener('keydown', e => {
+      let next = null;
+      if (e.key === 'ArrowRight') next = tabs[(i + 1) % tabs.length];
+      else if (e.key === 'ArrowLeft') next = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === 'Home') next = tabs[0];
+      else if (e.key === 'End') next = tabs[tabs.length - 1];
+      if (next) {
+        e.preventDefault();
+        select(next);
+        next.focus();
+      }
+    });
+  });
+
+  select(tabs[0]);
 })();
 </script>
 

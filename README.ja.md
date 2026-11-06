@@ -77,7 +77,7 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 | [dependency-audit](skills/dependency-audit/SKILL.md) | 版を固定した Trivy で、ロックファイルと指定したコンテナイメージの既知の脆弱性を調べる。見た範囲を残し、見られなかったものは 0 件ではなく「未実施」と書く |
 | [data-validation](skills/data-validation/SKILL.md) | 自前のフィクスチャか明示的に設定した非本番接続を読み、件数・NULL 率・分布・一意性・参照整合性・書式を検証する |
 | [spec-doc](skills/spec-doc/SKILL.md) | コードから「生きた仕様書」を生成・同期し、ドキュメントと実装の乖離をなくす |
-| [progress-dashboard](skills/progress-dashboard/SKILL.md) | 品質スコアとセキュリティ指摘の推移を見る HTML ダッシュボード |
+| [progress-dashboard](skills/progress-dashboard/SKILL.md) | 品質・SAST・依存の監査の推移をタブごとに見る HTML ダッシュボード |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | 評価・監査レポートを対話的に GitHub Issue に登録する |
 | [sakuda-triage](skills/sakuda-triage/SKILL.md) | [sakuda](https://github.com/northraystudio/sakuda)（DAST）の検出を MCP 経由で取得し、ソースと突き合わせて confirmed / false-positive / accepted を `file:line` 付きで判定する。sakuda への書き戻しは承認後だけ |
 | [rule-proposer](skills/rule-proposer/SKILL.md) | 確定した検出を、fixture でテスト済みの Semgrep ルールにする。ルールにできないものは理由を示す。書き込みは承認後だけ |
@@ -232,8 +232,8 @@ claude plugin update maruda@northraystudio        # 次に plugin
 
 ![Progress Dashboard](examples/progress-dashboard/dashboard.png)
 
-`examples/progress-dashboard/` に、3 か月分の評価・監査 JSON と、それから生成した
-`dashboard.html` があります。ブラウザで開けます。
+`examples/progress-dashboard/` に、評価・SAST・依存の監査のサンプル JSON と、それから
+生成した `dashboard.html` があります。ブラウザで開けます。
 
 ## 補足
 
