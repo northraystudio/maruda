@@ -117,7 +117,9 @@ the member `crates/util` would match. Take the location from the root `Cargo.tom
 entry never overrides `exclude` (`members = ["tools/*"]` with `exclude = ["tools/util"]` leaves
 `tools/util` excluded; `members = ["tools/util"]` would not). `<d>` is a member when it is not
 excluded and either matches a `members` glob, or lies under the root and is a `path`
-dependency of a member, recursively — the same exclusion check applies at every step. Both
+dependency of a member, recursively — the root package (`[package]` beside `[workspace]`)
+counts as a member and seeds this even when `members` is absent, and the same exclusion check
+applies at every step. Both
 checks must pass; if either cannot be decided, the lockfile does not own `<d>`.
 
 Membership globs, exclusions, nested workspace declarations, pnpm's
