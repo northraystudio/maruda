@@ -85,8 +85,8 @@ of its own ecosystem:
 | `Cargo.toml` | `Cargo.lock` |
 
 It is covered when such a lockfile sits in the same directory, or when a workspace lockfile
-owns it as defined in 1.2 (e.g. `apps/web/package.json` under a root `pnpm-workspace.yaml`
-listing `apps/*` + `pnpm-lock.yaml`). This holds whether that lockfile was found by 1.2 or
+owns it as defined in 1.2 (e.g. `apps/web/package.json` under a root `pnpm-lock.yaml` whose
+`importers` lists `apps/web`). This holds whether that lockfile was found by 1.2 or
 lies inside the path itself. Any other lockfile covers nothing: `pyproject.toml` beside a
 `package-lock.json` is still "not run — no lockfile (`package-lock.json` is Node.js)", and so
 is `pyproject.toml` beside a `requirements.txt` — the two may list different dependencies.
@@ -96,33 +96,30 @@ is `pyproject.toml` beside a `requirements.txt` — the two may list different d
 Walk up to the repository root (never above it), starting with the parent, from **each** of:
 the path itself — even when it has a lockfile of its own — and every directory under it holding
 a manifest with no lockfile of its own ecosystem beside it (1.1). A lockfile in an ancestor
-**owns** a directory only when all of these hold:
+**owns** a directory only when it is of the directory's manifest's ecosystem (1.1) and
+**records that directory as a workspace member** — the lockfile is the evidence, not the
+workspace metadata. `<d>` is the directory relative to the lockfile's, with `/`:
 
-1. The ancestor holds workspace metadata, and the metadata, the lockfile and the directory's
-   manifest are of one ecosystem:
+| Lockfile | Records `<d>` as a member when it has |
+|----------|----------------------------------------|
+| `pnpm-lock.yaml` | a key `<d>` under `importers` |
+| `package-lock.json` (`lockfileVersion` 2 or 3) | a key `<d>` under `packages` |
+| `yarn.lock` with `__metadata` (Yarn 2+) | an entry resolved as `<name>@workspace:<d>` |
+| `bun.lock` | a key `<d>` under `workspaces` |
+| `uv.lock` | a `[[package]]` with `source = { editable = "<d>" }` or `{ virtual = "<d>" }` |
+| `Cargo.lock` | a `[[package]]` with no `source` whose `name` and `version` are the manifest's (`version.workspace = true` takes the root's `[workspace.package]` version; no version is `0.0.0`) |
+| `yarn.lock` without `__metadata` (Yarn 1), and every other lockfile | never — they do not record workspace members; the manifest stays "not run — no lockfile (`yarn.lock` v1 does not record workspace members)" |
 
-   | Workspace metadata | Members | Lockfile |
-   |--------------------|---------|----------|
-   | `pnpm-workspace.yaml` | `packages` | `pnpm-lock.yaml` |
-   | `"workspaces"` in `package.json` | the array, or `workspaces.packages` | `package-lock.json`, `yarn.lock`, `bun.lock` |
-   | `[workspace]` in `Cargo.toml` | `members` (minus `exclude`), plus every `path` dependency of a member that lies under the workspace root — Cargo adds those implicitly, recursively | `Cargo.lock` |
-   | `[tool.uv.workspace]` in `pyproject.toml` | `members` (minus `exclude`) | `uv.lock` |
-   | `go.work` | `use` | — (each `go.mod` is its own target) |
+Membership globs, exclusions, nested workspace declarations, pnpm's
+`sharedWorkspaceLockfile`, uv's `managed = false`, Bun's unnamed packages and Cargo's implicit
+path members all decide what the tool writes into the lockfile — read the result, never
+re-derive it from the metadata. A member added to the metadata but missing from the lockfile
+is unresolved and stays not run. If the lockfile cannot be read, it owns nothing.
 
-2. The directory, relative to the ancestor, is a member as that column defines it and matches
-   no exclusion (`!pattern` in `packages` / `workspaces`, or `exclude`). `tools/cli` is not a
-   member of `packages: [apps/*]`, so a root `pnpm-lock.yaml` does not own it.
-3. The workspace shares one lockfile. pnpm does not when `shared-workspace-lockfile=false` is
-   in the workspace root's `.npmrc` or `sharedWorkspaceLockfile: false` is in
-   `pnpm-workspace.yaml`: then the root `pnpm-lock.yaml` owns the root package only, and each
-   member needs its own. A setting outside the repository (user or global `.npmrc`) is not
-   visible — list it under "Not visible to this audit".
-
-If the metadata cannot be read or membership cannot be decided, the lockfile does not own the
-directory — never assume membership. Every owning lockfile found this way is added to the
-scope, so a manifest is never dropped from Coverage without its lockfile being scanned —
-auditing `apps/` adds the root `pnpm-lock.yaml` that owns `apps/web`, although it does not own
-`apps/` itself. Record each expansion:
+Every owning lockfile found this way is added to the scope, so a manifest is never dropped
+from Coverage without its lockfile being scanned — auditing `apps/` adds the root
+`pnpm-lock.yaml` whose `importers` lists `apps/web`, although it does not list `apps`. Record
+each expansion:
 
 > Scope expanded: `pnpm-lock.yaml` at the repository root owns `apps/web` — scanned the whole
 > workspace lockfile; findings are not filtered to `apps/web`'s members.
@@ -410,7 +407,7 @@ Counting rules, used by both the report and the JSON:
 |--------|------|--------|---------------|------|---------:|
 | `pnpm-lock.yaml` (repo root) | lockfile | scanned | scope expanded from `apps/web`; whole workspace | trivy 0.76.1 + pnpm audit 10.x | 812 |
 | `services/api/requirements.txt` | lockfile | scanned | direct dependencies only — transitive not visible | trivy 0.76.1 | 14 |
-| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved — not a member of the root workspace (`apps/*`) | — | — |
+| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved — the root `pnpm-lock.yaml` does not list `tools/cli` under `importers` | — | — |
 | `services/ml/pyproject.toml` | manifest | not run | no lockfile (`package-lock.json` beside it is Node.js); versions are not resolved | — | — |
 | `services/api/Dockerfile` | image candidate | not scanned | no image named | — | — |
 | `ghcr.io/acme/api:1.4@sha256:…` (linux/amd64) | image, runtime | not run | vulnerability DB unavailable: <error> | trivy 0.76.1 | — |
