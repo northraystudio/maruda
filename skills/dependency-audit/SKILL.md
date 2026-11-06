@@ -106,14 +106,22 @@ workspace metadata. `<d>` is the directory relative to the lockfile's, with `/`:
 | `package-lock.json` (`lockfileVersion` 2 or 3) | a key `<d>` under `packages` |
 | `yarn.lock` with `__metadata` (Yarn 2+) | an entry resolved as `<name>@workspace:<d>` |
 | `bun.lock` | a key `<d>` under `workspaces` |
-| `uv.lock` | a `[[package]]` with `source = { editable = "<d>" }` or `{ virtual = "<d>" }` |
-| `Cargo.lock` | a `[[package]]` with no `source` whose `name` and `version` are the manifest's (`version.workspace = true` takes the root's `[workspace.package]` version; no version is `0.0.0`) |
+| `uv.lock` | a `[[package]]` with `source = { editable = "<d>" }`, `{ virtual = "<d>" }` or `{ directory = "<d>" }` (`editable = false`) |
+| `Cargo.lock` | a `[[package]]` with no `source` whose `name` and `version` are the manifest's (`version.workspace = true` takes the root's `[workspace.package]` version; no version is `0.0.0`) — **and** the root `Cargo.toml` makes `<d>` a member (below) |
 | `yarn.lock` without `__metadata` (Yarn 1), and every other lockfile | never — they do not record workspace members; the manifest stays "not run — no lockfile (`yarn.lock` v1 does not record workspace members)" |
 
+`Cargo.lock` is the one exception to "read the lockfile only": it records a path package by
+name and version, never by path, so an excluded `tools/util` with the same name and version as
+the member `crates/util` would match. Take the location from the root `Cargo.toml`: `<d>` is a
+member when it matches a `[workspace] members` glob and is not under an `exclude` path (a
+`members` entry wins over `exclude`), or when it lies under the root, is not
+excluded, and is a `path` dependency of a member, recursively. Both checks must pass; if either cannot be decided, the
+lockfile does not own `<d>`.
+
 Membership globs, exclusions, nested workspace declarations, pnpm's
-`sharedWorkspaceLockfile`, uv's `managed = false`, Bun's unnamed packages and Cargo's implicit
-path members all decide what the tool writes into the lockfile — read the result, never
-re-derive it from the metadata. A member added to the metadata but missing from the lockfile
+`sharedWorkspaceLockfile`, uv's `managed = false` and Bun's unnamed packages all decide what the tool writes into the
+lockfile — read the result, never re-derive it from the metadata (Cargo, above, is the only
+exception). A member added to the metadata but missing from the lockfile
 is unresolved and stays not run. If the lockfile cannot be read, it owns nothing.
 
 Every owning lockfile found this way is added to the scope, so a manifest is never dropped
