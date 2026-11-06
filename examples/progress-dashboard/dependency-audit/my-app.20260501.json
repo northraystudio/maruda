@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0",
+  "type": "dependency-audit",
+  "date": "2026-05-01",
+  "target": "my-app",
+  "scope": ".",
+  "status": "complete",
+  "scanner": { "name": "trivy", "version": "0.76.1", "pinned": true, "dbUpdatedAt": "2026-05-01T00:12:44Z" },
+  "coverage": { "scanned": 3, "notRun": 0, "excluded": 1 },
+  "vulnerabilities": { "critical": 0, "high": 1, "medium": 2, "low": 1, "unknown": 1 },
+  "remediation": { "p0": 0, "p1": 1 }
+}

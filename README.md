@@ -77,7 +77,7 @@ never edit code or data.
 | [dependency-audit](skills/dependency-audit/SKILL.md) | Known vulnerabilities in lockfiles and named container images with a pinned Trivy; states what was scanned and marks what could not be as "not run", never as zero |
 | [data-validation](skills/data-validation/SKILL.md) | Checks counts, NULL rates, distribution, uniqueness, referential integrity and formats on your own fixtures or a configured non-production source |
 | [spec-doc](skills/spec-doc/SKILL.md) | Generates or syncs a living specification from source so docs stop drifting |
-| [progress-dashboard](skills/progress-dashboard/SKILL.md) | HTML dashboard of quality scores and security findings over time |
+| [progress-dashboard](skills/progress-dashboard/SKILL.md) | HTML dashboard of quality, SAST and dependency-audit trends, one tab each |
 | [report-to-issues](skills/report-to-issues/SKILL.md) | Turns evaluation and audit reports into GitHub Issues, interactively |
 | [sakuda-triage](skills/sakuda-triage/SKILL.md) | Checks [sakuda](https://github.com/northraystudio/sakuda) (DAST) findings against the source via its MCP: confirmed / false-positive / accepted with `file:line`, written back to sakuda after approval |
 | [rule-proposer](skills/rule-proposer/SKILL.md) | Turns confirmed findings into Semgrep rules with tested fixtures — or says why a finding cannot be a rule; writes only after approval |
@@ -233,9 +233,9 @@ with `npx skills add` have no namespace: `/spec-doc`, `/setup`, and so on.
 
 ![Progress Dashboard](examples/progress-dashboard/dashboard.png)
 
-`examples/progress-dashboard/` holds three months of sample evaluation and
-security-scan JSON plus the self-contained `dashboard.html` they produce — open
-it in a browser.
+`examples/progress-dashboard/` holds sample evaluation, security-scan and
+dependency-audit JSON plus the self-contained `dashboard.html` they produce —
+open it in a browser.
 
 ## More
 
