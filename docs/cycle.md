@@ -103,7 +103,10 @@ Branch protection does not apply to `epic/**` by design: the gate is that PR.
   is `reachable` only with govulncheck evidence, otherwise `unknown`; context
   (dev, image-bundled) explains a finding but never removes it. Writes
   `docs/dependency-audit/[target].YYYYMMDD.md` in the security-audit format
-  (one `V-XX` per package upgrade) and a JSON summary. Never installs, upgrades,
+  (one `V-XX` per package upgrade) and a JSON summary. Only when the user asks,
+  it also converts each scanned target into an SBOM (CycloneDX, or SPDX) with
+  the same pinned Trivy, saved outside the repository by default; incomplete
+  and not-run targets get no SBOM, only a reason. Never installs, upgrades,
   regenerates a lockfile, or builds an image.
 - `data-validation` — Checks record counts, NULL rates (including empty
   strings, zero values, and sentinels), value distribution, uniqueness,

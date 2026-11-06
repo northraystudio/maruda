@@ -211,6 +211,7 @@ claude plugin update maruda@northraystudio        # 次に plugin
 /maruda:software-evaluation src/backend/
 /maruda:vulnerability-scan src/
 /maruda:dependency-audit .
+/maruda:dependency-audit . SBOMも出して（CycloneDX）
 /maruda:data-validation db/
 /maruda:spec-doc src/
 /maruda:progress-dashboard
