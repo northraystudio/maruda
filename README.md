@@ -212,6 +212,7 @@ Describe the task and the matching skill is applied, or call one directly:
 /maruda:software-evaluation src/backend/
 /maruda:vulnerability-scan src/
 /maruda:dependency-audit .
+/maruda:dependency-audit . and generate an SBOM (CycloneDX)
 /maruda:data-validation db/
 /maruda:spec-doc src/
 /maruda:progress-dashboard
