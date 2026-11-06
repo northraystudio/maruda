@@ -72,19 +72,54 @@ Exclusions — always the same, always recorded in the coverage table:
 
 A dependency manifest with no lockfile (`package.json` alone, `pyproject.toml` without a lock)
 is a target of kind `manifest`, recorded as "not run — no lockfile; versions are not resolved".
-Do not generate one. A manifest is covered — and gets no row of its own — when a lockfile sits in
-the same directory, or when a workspace root lockfile owns it: an ancestor directory (up to the
-repository root) holding the workspace metadata listed in 1.2 together with its lockfile, e.g.
-`apps/web/package.json` under a root `pnpm-workspace.yaml` + `pnpm-lock.yaml`. This holds
-whether that lockfile was found by 1.2 or lies inside the path itself.
+Do not generate one. A manifest is covered — and gets no row of its own — only by a lockfile
+of its own ecosystem:
+
+| Manifest | Covered by |
+|----------|-----------|
+| `package.json` | `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock` |
+| `pyproject.toml` | `poetry.lock`, `uv.lock`, `pylock.toml` |
+| `Pipfile` | `Pipfile.lock` |
+| `Gemfile` | `Gemfile.lock` |
+| `composer.json` | `composer.lock` |
+| `Cargo.toml` | `Cargo.lock` |
+
+It is covered when such a lockfile sits in the same directory, or when a workspace lockfile
+owns it as defined in 1.2 (e.g. `apps/web/package.json` under a root `pnpm-lock.yaml` whose
+`importers` lists `apps/web`). This holds whether that lockfile was found by 1.2 or
+lies inside the path itself. Any other lockfile covers nothing: `pyproject.toml` beside a
+`package-lock.json` is still "not run — no lockfile (`package-lock.json` is Node.js)", and so
+is `pyproject.toml` beside a `requirements.txt` — the two may list different dependencies.
 
 ### 1.2 The workspace root lockfile
 
-Walk up from the path to the repository root (never above it), starting with the path's parent.
-This runs even when the path has a lockfile of its own. If an ancestor holds workspace
-metadata (`pnpm-workspace.yaml`, `"workspaces"` in `package.json`, `go.work`,
-`[workspace]` in `Cargo.toml`, `[tool.uv.workspace]` in `pyproject.toml`) **and** the lockfile
-that owns the path, add that lockfile to the scope and record the expansion:
+Walk up to the repository root (never above it), starting with the parent, from **each** of:
+the path itself — even when it has a lockfile of its own — and every directory under it holding
+a manifest with no lockfile of its own ecosystem beside it (1.1). A lockfile in an ancestor
+**owns** a directory only when it is of the directory's manifest's ecosystem (1.1) and
+**records that directory as a workspace member** — the lockfile is the evidence, not the
+workspace metadata. `<d>` is the directory relative to the lockfile's, with `/`:
+
+| Lockfile | Records `<d>` as a member when it has |
+|----------|----------------------------------------|
+| `pnpm-lock.yaml` | a key `<d>` under `importers` |
+| `package-lock.json` (`lockfileVersion` 2 or 3) | a key `<d>` under `packages` |
+| `yarn.lock` with `__metadata` (Yarn 2+) | an entry resolved as `<name>@workspace:<d>` |
+| `bun.lock` | a key `<d>` under `workspaces` |
+| `uv.lock` | a `[[package]]` with `source = { editable = "<d>" }` or `{ virtual = "<d>" }` |
+| `Cargo.lock` | a `[[package]]` with no `source` whose `name` and `version` are the manifest's (`version.workspace = true` takes the root's `[workspace.package]` version; no version is `0.0.0`) |
+| `yarn.lock` without `__metadata` (Yarn 1), and every other lockfile | never — they do not record workspace members; the manifest stays "not run — no lockfile (`yarn.lock` v1 does not record workspace members)" |
+
+Membership globs, exclusions, nested workspace declarations, pnpm's
+`sharedWorkspaceLockfile`, uv's `managed = false`, Bun's unnamed packages and Cargo's implicit
+path members all decide what the tool writes into the lockfile — read the result, never
+re-derive it from the metadata. A member added to the metadata but missing from the lockfile
+is unresolved and stays not run. If the lockfile cannot be read, it owns nothing.
+
+Every owning lockfile found this way is added to the scope, so a manifest is never dropped
+from Coverage without its lockfile being scanned — auditing `apps/` adds the root
+`pnpm-lock.yaml` whose `importers` lists `apps/web`, although it does not list `apps`. Record
+each expansion:
 
 > Scope expanded: `pnpm-lock.yaml` at the repository root owns `apps/web` — scanned the whole
 > workspace lockfile; findings are not filtered to `apps/web`'s members.
@@ -157,7 +192,7 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/trivy"
 mkdir -p "$CACHE"            # create it as the user, before docker creates it as root
 OUT="$(mktemp -d)"
 
-# Lockfiles — one scan per scan root: the path, plus the workspace root if Step 1.2 expanded it.
+# Lockfiles — one scan per scan root: the path, plus each workspace root Step 1.2 added.
 # Scan the directory, not single files: Trivy reads the manifests beside each lockfile
 # (package.json for yarn/npm dev classification, composer.json, go.sum for old go.mod).
 docker run --rm \
@@ -308,10 +343,10 @@ mkdir -p "$SBOM_DIR"
 
 # Lockfile: keep only that target's result, so nested out-of-scope results are dropped
 jq --arg t "<Target>" '.Results |= map(select(.Target == $t))' \
-  "$OUT/<n>.json" > "$OUT/<n>.<slug>.json"
+  "$OUT/<n>.json" > "$OUT/<k>-<slug>.json"
 docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
-  convert --format <cyclonedx|spdx-json> "/out/<n>.<slug>.json" \
-  > "$SBOM_DIR/[target].YYYYMMDD.<slug>.<cdx|spdx>.json" 2> "$OUT/<n>.<slug>.sbom.err"
+  convert --format <cyclonedx|spdx-json> "/out/<k>-<slug>.json" \
+  > "$SBOM_DIR/[target].YYYYMMDD.<k>-<slug>.<cdx|spdx>.json" 2> "$OUT/<k>-<slug>.sbom.err"
 
 # Image: convert its whole result (OS and language packages together)
 docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
@@ -319,8 +354,12 @@ docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
   > "$SBOM_DIR/[target].YYYYMMDD.image-<n>.<cdx|spdx>.json" 2> "$OUT/image-<n>.sbom.err"
 ```
 
-With the local binary, run `trivy convert` with the same flags directly. `<slug>` is the
-target path with `/` replaced by `-` (`apps/web/pnpm-lock.yaml` → `apps-web-pnpm-lock.yaml`).
+With the local binary, run `trivy convert` with the same flags directly. `<n>` is the scan
+root's result (Step 3); `<k>` is the lockfile's position in the Step 1 enumeration, counted from
+1; `<slug>` is the target path with `/` replaced by `-` (`apps/web/pnpm-lock.yaml` →
+`apps-web-pnpm-lock.yaml`). The slug is for reading only — it is not unique
+(`apps/web/package-lock.json` and `apps-web/package-lock.json` share one), and `<n>` is shared
+by every lockfile in a scan root, so `<k>` is what keeps each target's files apart.
 
 - A non-zero exit, a `FATAL` line, or empty output means the SBOM was **not generated** for
   that target: delete the partial file and quote the line. The audit's own results do not
@@ -340,7 +379,7 @@ Save as `docs/dependency-audit/[target].YYYYMMDD.md` (`[target]` as in `vulnerab
 the date is the local date of the run — timestamps from Trivy stay in UTC and say so).
 
 Counting rules, used by both the report and the JSON:
-- **Targets** are lockfiles, named images, and manifests no lockfile covers (Step 1.1). Status
+- **Targets** are lockfiles, named images, and manifests no lockfile of their own ecosystem covers (Step 1.1). Status
   is `complete` when every target was scanned, `partial` when some were incomplete or not run,
   `not run` when none were scanned or incomplete. `coverage.notRun` counts both incomplete and
   not-run targets. An uncovered manifest is always not run, so a run that has one is never
@@ -368,7 +407,8 @@ Counting rules, used by both the report and the JSON:
 |--------|------|--------|---------------|------|---------:|
 | `pnpm-lock.yaml` (repo root) | lockfile | scanned | scope expanded from `apps/web`; whole workspace | trivy 0.76.1 + pnpm audit 10.x | 812 |
 | `services/api/requirements.txt` | lockfile | scanned | direct dependencies only — transitive not visible | trivy 0.76.1 | 14 |
-| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved | — | — |
+| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved — the root `pnpm-lock.yaml` does not list `tools/cli` under `importers` | — | — |
+| `services/ml/pyproject.toml` | manifest | not run | no lockfile (`package-lock.json` beside it is Node.js); versions are not resolved | — | — |
 | `services/api/Dockerfile` | image candidate | not scanned | no image named | — | — |
 | `ghcr.io/acme/api:1.4@sha256:…` (linux/amd64) | image, runtime | not run | vulnerability DB unavailable: <error> | trivy 0.76.1 | — |
 | `**/node_modules`, `**/vendor` | — | excluded | lockfile is the source of truth | — | — |
@@ -418,8 +458,8 @@ request the report has no SBOM section at all.
 
 | Target | SBOM | Packages | Not in it / reason |
 |--------|------|---------:|--------------------|
-| `pnpm-lock.yaml` (repo root) | `[target].YYYYMMDD.pnpm-lock.yaml.cdx.json` | 812 | dev dependencies excluded |
-| `services/api/requirements.txt` | `[target].YYYYMMDD.services-api-requirements.txt.cdx.json` | 14 | transitive dependencies not visible |
+| `pnpm-lock.yaml` (repo root) | `[target].YYYYMMDD.1-pnpm-lock.yaml.cdx.json` | 812 | dev dependencies excluded |
+| `services/api/requirements.txt` | `[target].YYYYMMDD.2-services-api-requirements.txt.cdx.json` | 14 | transitive dependencies not visible |
 | `ghcr.io/acme/api:1.4@sha256:…` | not generated | — | not run — vulnerability DB unavailable |
 | `apps/legacy/yarn.lock` | not generated | — | incomplete — `Walk error file_path="…"` |
 ````
@@ -458,7 +498,7 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 
 ## Step 7: Quality gate
 
-- [ ] Every lockfile in scope, every manifest no lockfile covers, every named image, and every exclusion has a Coverage row
+- [ ] Every lockfile in scope, every manifest no lockfile of its own ecosystem covers (Step 1.1), every named image, and every exclusion has a Coverage row
 - [ ] Every "not run" or "incomplete" row quotes why; no failed or partial analysis is counted as a clean scan
 - [ ] Scanner version, how it ran (container / local), and DB `UpdatedAt` are in the header
 - [ ] A workspace scope expansion, if any, is stated
