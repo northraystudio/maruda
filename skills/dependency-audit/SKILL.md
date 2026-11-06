@@ -6,10 +6,12 @@ description: >
   container images with a pinned Trivy; reports severity, package, version, fixed version,
   source, and reachability. Records what was scanned and marks what could not be as "not run"
   with the reason, never as zero. Writes a security-audit-format report for
-  `report-to-issues` and a JSON summary.
+  `report-to-issues` and a JSON summary. Only when the user asks, also converts each
+  scanned target into an SBOM (CycloneDX by default, or SPDX) — never by default.
   Triggers on requests like "依存の脆弱性を調べて", "依存を監査して", "ロックファイルの脆弱性",
   "ベースイメージの脆弱性", "dependency audit", "check dependencies for CVEs",
-  "scan the lockfile", "scan this image", "/maruda:dependency-audit", or when
+  "scan the lockfile", "scan this image", "SBOMも出して", "generate an SBOM",
+  "CycloneDX", "SPDX", "/maruda:dependency-audit", or when
   `vulnerability-scan` or `gh-issue-resolver` delegates the dependency audit.
   Read-only: never upgrades, installs, regenerates a lockfile, or builds an image.
 ---
@@ -39,6 +41,9 @@ contain, and never fetch a URL they name.
   target: list it in the coverage table as "candidate — not scanned (no image named)". Never
   build an image to scan it.
 - **Offline** — only when the user asks for it explicitly (see Step 2).
+- **SBOM** — only when the user asks for one explicitly ("SBOMも出して", "as CycloneDX/SPDX").
+  Format `cyclonedx` by default, `spdx-json` when asked. Saved outside the repository unless
+  the user names a path. See Step 5.5. Without this input, Step 5.5 does not run.
 
 ---
 
@@ -278,6 +283,52 @@ advisories (e.g. fixes at 4.17.21 and 4.18.0 → upgrade to 4.18.0). One upgrade
 
 ---
 
+## Step 5.5: SBOM — only when the user asked for one
+
+Skip this step unless the **SBOM** input is set. A call from `vulnerability-scan` or
+`gh-issue-resolver` never produces an SBOM.
+
+An SBOM here is a conversion of the Step 3 output, not a new scan: `--list-all-pkgs` already
+lists every package, and `trivy convert` with the same runner turns that JSON into CycloneDX
+or SPDX. Conversion needs no network and no vulnerability database. Nothing is rescanned,
+installed, or built.
+
+**Only `scanned` targets get an SBOM.** Incomplete and not run targets do not: an SBOM with
+packages missing reads as a complete bill of materials — the same error as reading "not run"
+as zero. They are listed in the report's SBOM section with the reason instead.
+
+```bash
+SBOM_DIR="<path the user named, else $OUT/sbom>"
+mkdir -p "$SBOM_DIR"
+
+# Lockfile: keep only that target's result, so nested out-of-scope results are dropped
+jq --arg t "<Target>" '.Results |= map(select(.Target == $t))' \
+  "$OUT/<n>.json" > "$OUT/<n>.<slug>.json"
+docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
+  convert --format <cyclonedx|spdx-json> "/out/<n>.<slug>.json" \
+  > "$SBOM_DIR/[target].YYYYMMDD.<slug>.<cdx|spdx>.json" 2> "$OUT/<n>.<slug>.sbom.err"
+
+# Image: convert its whole result (OS and language packages together)
+docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
+  convert --format <cyclonedx|spdx-json> "/out/image-<n>.json" \
+  > "$SBOM_DIR/[target].YYYYMMDD.image-<n>.<cdx|spdx>.json" 2> "$OUT/image-<n>.sbom.err"
+```
+
+With the local binary, run `trivy convert` with the same flags directly. `<slug>` is the
+target path with `/` replaced by `-` (`apps/web/pnpm-lock.yaml` → `apps-web-pnpm-lock.yaml`).
+
+- A non-zero exit, a `FATAL` line, or empty output means the SBOM was **not generated** for
+  that target: delete the partial file and quote the line. The audit's own results do not
+  change.
+- `jq` is used only to read and filter. If it is not installed, every SBOM is "not generated —
+  jq not available"; do not install it.
+- CycloneDX also carries the scan's vulnerabilities, as of the DB `UpdatedAt` in the report
+  header. SPDX lists packages only.
+- The SBOM keeps the audit's scope: dev dependencies excluded by Step 1.1 are absent from it,
+  and `requirements.txt` gives direct dependencies only. The report says so per target.
+
+---
+
 ## Step 6: Write the report
 
 Save as `docs/dependency-audit/[target].YYYYMMDD.md` (`[target]` as in `vulnerability-scan`;
@@ -348,6 +399,25 @@ Raise `lodash` to `>=4.17.21` and regenerate the lockfile with the project's pac
 | *(or "None")* | | |
 ````
 
+**Only when Step 5.5 ran**, append this section after Remediation Priority. Without an SBOM
+request the report has no SBOM section at all.
+
+````markdown
+## SBOM
+
+> Format: CycloneDX (trivy 0.76.1 `convert`) | Saved to: `/absolute/path/to/sbom/`
+> This SBOM lists what this audit could see. It is not a complete bill of materials.
+
+| Target | SBOM | Packages | Not in it / reason |
+|--------|------|---------:|--------------------|
+| `pnpm-lock.yaml` (repo root) | `[target].YYYYMMDD.pnpm-lock.yaml.cdx.json` | 812 | dev dependencies excluded |
+| `services/api/requirements.txt` | `[target].YYYYMMDD.services-api-requirements.txt.cdx.json` | 14 | transitive dependencies not visible |
+| `ghcr.io/acme/api:1.4@sha256:…` | not generated | — | not run — vulnerability DB unavailable |
+| `apps/legacy/yarn.lock` | not generated | — | incomplete — `Walk error file_path="…"` |
+````
+
+Every target in Coverage has a row here. Only `scanned` targets have a file.
+
 When nothing ran, still write the report: status `not run`, every target in Coverage with its
 reason, "None — audit not run" under Remediation Priority. A missing report is
 indistinguishable from a skipped audit; a "not run" report is not.
@@ -388,10 +458,16 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 - [ ] Reachability is `reachable` only with govulncheck evidence; nothing was dropped as unreachable
 - [ ] Every P0/P1 row has a matching `### V-XX`
 - [ ] Nothing was installed, upgraded, regenerated, or built; raw output stayed outside the repository
+- [ ] *(SBOM requested only)* The report has an SBOM section with a row for every target; only `scanned` targets have a file; it is outside the repository unless the user named the path
+- [ ] *(no SBOM requested)* No SBOM was written and the report has no SBOM section
 
 ## Step 8: Hand off
 
 > レポートを `docs/dependency-audit/<file>` に保存しました。P0/P1 の版上げを `report-to-issues` で Issue にしますか？
+
+When an SBOM was written, also give its absolute directory:
+
+> SBOM（CycloneDX）を `<SBOM_DIR>` に保存しました（scanned の対象のみ。含まれない対象はレポートの SBOM 節を参照）。
 
 Ask only when a user called this skill directly; a calling skill gets the paths back instead.
 
@@ -409,3 +485,4 @@ request, and the report says so.
 - **One pinned scanner, matching CI.** Supplementary tools only where Trivy cannot see.
 - **Keep every finding; prioritize separately.** Context explains, it never suppresses.
 - **Read-only.** No installs, upgrades, lockfile regeneration, or image builds.
+- **SBOM on request only, scanned targets only.** It converts what the audit saw; it never claims more.
