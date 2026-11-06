@@ -99,14 +99,16 @@ canvas as zero-width.
 
 ### 2.3 The dependency series
 
-The Dependency Audit trend is one series across the split, built per date:
+The Dependency Audit trend is one series across the split, built per **target and date** —
+two targets scanned on the same day are two points, never one (when there is more than one
+target, each label names its target):
 
-1. A `dependency-audit` summary on that date wins.
+1. A `dependency-audit` summary for that target and date wins.
    - `complete` → its `vulnerabilities` counts.
    - `partial` → its counts, labelled "(partial)" — they cover scanned targets only.
    - `not-run` (or any other status, or no `vulnerabilities`) → no counts, labelled "(not run)"
      or "(unavailable)".
-2. Otherwise, the `dependencies` field of that date's `vulnerability-scan` summary, so the history
+2. Otherwise, the `dependencies` field of that target and date's `vulnerability-scan` summary, so the history
    from before the split stays on the chart. Those summaries have no `unknown` severity: leave
    it empty, not 0. A scan without `dependencies` (its audit was partial or did not run) has no
    counts, labelled "(unavailable)".
@@ -119,7 +121,7 @@ The cards follow the same rule:
 - **Latest Audit Status**, Upgrades and Scanner come from the newest `dependency-audit` summary
   itself, not from the merged series — a later back-filled scan must not hide an audit that did
   not run.
-- A **delta** compares a point with the one immediately before it, and only when both have counts
+- A **delta** compares a point with the one immediately before it **for the same target**, and only when both have counts
   and neither is partial. Across a gap or a coverage change, show no delta: a drop there may be
   missing coverage, not an improvement.
 

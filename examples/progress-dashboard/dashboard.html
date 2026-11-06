@@ -510,14 +510,19 @@ const SKIPPED_FILES = [];
     });
   }
 
-  /* ---- dependency series: one point per date, from the source that owns it ----
-     A dependency-audit summary wins on its date. Other dates fall back to the
+  /* ---- dependency series: one point per target and date, from the source that owns it ----
+     A dependency-audit summary wins on its target and date. Others fall back to the
      vulnerability-scan `dependencies` field so history from before the split stays
-     on the chart. A point without counts has `counts: null` — a labelled gap, never 0. */
+     on the chart. A point without counts has `counts: null` — a labelled gap, never 0.
+     Targets are never merged: two targets scanned on one day are two points. */
   function buildDependencySeries(audits, scans) {
-    const dates = [...new Set([...audits.map(d => d.date), ...scans.map(d => d.date)])].sort();
-    return dates.map(date => {
-      const audit = findByDate(audits, date);
+    const keyOf = d => d.date + '\u0000' + d.target;
+    const keys = [...new Set([...audits.map(keyOf), ...scans.map(keyOf)])].sort();
+    const multiTarget = new Set([...audits, ...scans].map(d => d.target)).size > 1;
+    return keys.map(key => {
+      const [date, target] = key.split('\u0000');
+      const prefix = multiTarget ? target + ' · ' : '';
+      const audit = audits.find(d => keyOf(d) === key);
       if (audit) {
         const hasCounts = (audit.status === 'complete' || audit.status === 'partial') && audit.vulnerabilities;
         const suffix = audit.status === 'complete' ? '' :
@@ -525,7 +530,8 @@ const SKIPPED_FILES = [];
           audit.status === 'not-run' ? ' (not run)' : ' (unavailable)';
         return {
           date,
-          label: formatDate(date) + (hasCounts ? suffix : (suffix || ' (unavailable)')),
+          target,
+          label: prefix + formatDate(date) + (hasCounts ? suffix : (suffix || ' (unavailable)')),
           source: 'dependency-audit',
           status: audit.status || 'unknown',
           reason: audit.notRunReason || null,
@@ -535,11 +541,12 @@ const SKIPPED_FILES = [];
           coverage: audit.coverage || null
         };
       }
-      const scan = findByDate(scans, date);
+      const scan = scans.find(d => keyOf(d) === key);
       const deps = scan.dependencies;
       return {
         date,
-        label: formatDate(date) + (deps ? '' : ' (unavailable)'),
+        target,
+        label: prefix + formatDate(date) + (deps ? '' : ' (unavailable)'),
         source: 'vulnerability-scan',
         status: deps ? 'complete' : 'unavailable',
         reason: null,
@@ -730,12 +737,14 @@ const SKIPPED_FILES = [];
     deps: function () {
       const series = buildDependencySeries(AUDITS, SCANS);
       const latest = last(series);
-      const before = prevOf(series);
-      const lastCounted = last(series.filter(p => p.counts));
+      // Compare and fall back only within the latest point's own target.
+      const sameTarget = latest ? series.filter(p => p.target === latest.target) : [];
+      const before = prevOf(sameTarget);
+      const lastCounted = last(sameTarget.filter(p => p.counts));
       // Status, upgrades and scanner come from the newest audit itself: a later
       // back-filled scan must not hide an audit that did not run.
       const audit = last(AUDITS);
-      const auditPoint = audit ? series.find(p => p.date === audit.date) : null;
+      const auditPoint = audit ? series.find(p => p.source === 'dependency-audit' && p.date === audit.date && p.target === audit.target) : null;
       // A delta only compares adjacent points that both have full counts.
       const comparable = p => p && p.counts && p.status === 'complete';
 
@@ -746,8 +755,8 @@ const SKIPPED_FILES = [];
         color: '#f59e0b',
         note: !latest ? null
           : !latest.counts
-            ? (lastCounted ? `No counts on ${formatDate(latest.date)}. Last counted: ${formatDate(lastCounted.date)} (${totalOf(lastCounted)})` : `No counts on ${formatDate(latest.date)}`)
-            : [formatDate(latest.date), 'source: ' + latest.source,
+            ? (lastCounted ? `No counts on ${latest.label}. Last counted: ${formatDate(lastCounted.date)} (${totalOf(lastCounted)})` : `No counts on ${latest.label}`)
+            : [latest.label, 'source: ' + latest.source,
                latest.status === 'partial' ? 'partial — scanned targets only' : null,
                before && !comparable(before) ? 'no delta: previous point has no full counts' : null].filter(Boolean).join(' · ')
       });
@@ -756,14 +765,14 @@ const SKIPPED_FILES = [];
         value: auditPoint ? auditPoint.status : 'no audit yet',
         color: auditPoint && auditPoint.status === 'complete' ? '#22c55e' : '#f97316',
         note: auditPoint
-          ? [formatDate(auditPoint.date), auditPoint.reason, auditPoint.coverage ? `${auditPoint.coverage.scanned} scanned / ${auditPoint.coverage.notRun} not run` : null].filter(Boolean).join(' · ')
+          ? [auditPoint.label, auditPoint.reason, auditPoint.coverage ? `${auditPoint.coverage.scanned} scanned / ${auditPoint.coverage.notRun} not run` : null].filter(Boolean).join(' · ')
           : 'Only back-filled vulnerability-scan counts are available'
       });
       addCard('deps-cards', {
         label: 'Upgrades P0 / P1',
         value: auditPoint && auditPoint.remediation ? `${auditPoint.remediation.p0} / ${auditPoint.remediation.p1}` : '—',
         color: auditPoint && auditPoint.remediation && auditPoint.remediation.p0 > 0 ? '#ef4444' : '#94a3b8',
-        note: auditPoint ? formatDate(auditPoint.date) : null
+        note: auditPoint ? auditPoint.label : null
       });
       addCard('deps-cards', {
         label: 'Scanner',
