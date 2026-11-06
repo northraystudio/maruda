@@ -3,7 +3,8 @@
 ## Cycle
 
 - Diagnosis skills (`software-evaluation`, `vulnerability-scan`,
-  `data-validation`) produce evidence; they never silently rewrite the codebase.
+  `dependency-audit`, `data-validation`) produce evidence; they never silently
+  rewrite the codebase.
 - Implementation requires an agreed plan comment from `gh-issue-planner`
   (`<!-- gh-issue-planner:agreed-plan -->`). Do not widen scope beyond it.
 - `gh-issue-resolver` may fix **regression** findings only, ≤3 iterations,

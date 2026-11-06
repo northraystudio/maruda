@@ -67,13 +67,14 @@ npx skills add northraystudio/maruda --skill '*' --agent claude-code -y --copy
 
 ## What you get
 
-Thirteen skills. The diagnostic ones are read-only — they produce evidence and
+Fourteen skills. The diagnostic ones are read-only — they produce evidence and
 never edit code or data.
 
 | Skill | What it does |
 | --- | --- |
 | [software-evaluation](skills/software-evaluation/SKILL.md) | Scores code quality on five pillars (Architecture, Reliability, Observability, Security, DX) with a 1–10 scorecard and a roadmap |
 | [vulnerability-scan](skills/vulnerability-scan/SKILL.md) | OWASP-based security audit with Semgrep; severity-rated findings with remediation |
+| [dependency-audit](skills/dependency-audit/SKILL.md) | Known vulnerabilities in lockfiles and named container images with a pinned Trivy; states what was scanned and marks what could not be as "not run", never as zero |
 | [data-validation](skills/data-validation/SKILL.md) | Checks counts, NULL rates, distribution, uniqueness, referential integrity and formats on your own fixtures or a configured non-production source |
 | [spec-doc](skills/spec-doc/SKILL.md) | Generates or syncs a living specification from source so docs stop drifting |
 | [progress-dashboard](skills/progress-dashboard/SKILL.md) | HTML dashboard of quality scores and security findings over time |
@@ -93,7 +94,7 @@ resolve ⇄ verify.
 
 ```mermaid
 graph LR
-    Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan<br/>data-validation"]
+    Diagnose["🔍 Diagnose<br/>software-evaluation<br/>vulnerability-scan<br/>dependency-audit<br/>data-validation"]
     Visualize["📊 Visualize<br/>progress-dashboard"]
     Register["📋 Register Issues<br/>report-to-issues"]
     Draft["✍️ Draft Issue<br/>gh-issue-drafter"]
@@ -210,6 +211,7 @@ Describe the task and the matching skill is applied, or call one directly:
 ```
 /maruda:software-evaluation src/backend/
 /maruda:vulnerability-scan src/
+/maruda:dependency-audit .
 /maruda:data-validation db/
 /maruda:spec-doc src/
 /maruda:progress-dashboard

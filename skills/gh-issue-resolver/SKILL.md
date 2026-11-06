@@ -160,7 +160,8 @@ Re-run a diagnostic skill when **any** of its triggers is present in the diff:
 | Skill | Re-run when the diff touches |
 |-------|------------------------------|
 | `data-validation` | migrations, DDL, schema files, ORM models/entities, serializers/DTOs, queries, fixtures/seeds/factories, import-export or ETL code, validation rules, or any column/field rename or type change |
-| `vulnerability-scan` | the issue originated from `vulnerability-scan`, **or** the diff touches auth, input handling, queries, file paths, outbound requests, headers/cookies, or dependencies |
+| `vulnerability-scan` | the issue originated from `vulnerability-scan`, **or** the diff touches auth, input handling, queries, file paths, outbound requests, or headers/cookies |
+| `dependency-audit` | the issue originated from `dependency-audit`, **or** the diff touches a dependency manifest or lockfile (`package.json`, `*.lock`, `pnpm-lock.yaml`, `go.mod`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `composer.json`, `Cargo.toml`, …), workspace config (`pnpm-workspace.yaml`, `go.work`, …), or a `Dockerfile` / image reference |
 | `software-evaluation` | the issue originated from `software-evaluation` |
 
 Run every skill whose triggers fire. If none fire, skip to 8.5.
@@ -175,8 +176,16 @@ this Issue:
 ```
 /maruda:data-validation <changed-data-scope>     # baseline: <base-ref>
 /maruda:vulnerability-scan <changed-path>
+/maruda:dependency-audit <changed-path>        # run on <base-ref> and on HEAD in the same session
 /maruda:software-evaluation <changed-path>
 ```
+
+`dependency-audit` has no baseline flag: run it on `<base-ref>` (the main working tree, or a
+temporary worktree of it) and on this branch **back to back in one session**, the second run
+with `--skip-db-update`, so both runs use the same vulnerability database (check that the two
+reports show the same DB `UpdatedAt`). With the database fixed, an advisory present in both is
+`pre-existing` and one only on this branch is a `regression` — the diff added or moved that
+package. A target the audit could not run is `environmental`.
 
 `data-validation` writes no file in this mode — read its session output directly. Parse the
 fixed header block it emits:
@@ -238,6 +247,7 @@ autonomous edits are visible to the reviewer rather than buried in the commit lo
 - Full test suite: pass
 - data-validation: FAIL → PASS (2 regressions fixed: D-01, D-03)
 - vulnerability-scan: not triggered
+- dependency-audit: complete — no new advisories (DB 2026-11-05)
 ```
 
 #### 8.6 Hand off what is out of scope
