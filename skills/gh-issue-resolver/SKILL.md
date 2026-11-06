@@ -183,9 +183,12 @@ this Issue:
 `dependency-audit` has no baseline flag: run it on `<base-ref>` (the main working tree, or a
 temporary worktree of it) and on this branch **back to back in one session**, the second run
 with `--skip-db-update`, so both runs use the same vulnerability database (check that the two
-reports show the same DB `UpdatedAt`). With the database fixed, an advisory present in both is
-`pre-existing` and one only on this branch is a `regression` — the diff added or moved that
-package. A target the audit could not run is `environmental`.
+reports show the same DB `UpdatedAt`). An advisory present in both is `pre-existing`. One only on
+this branch is a `regression` **only if the diff (`git diff <base-ref>...HEAD`) adds or changes
+that package@version** in a lockfile or an image reference; otherwise it is `pre-existing` — an
+advisory published between the two runs. The rule is the same whatever found it (`Found by`):
+`--skip-db-update` fixes Trivy's database only, while `pnpm audit` / `npm audit` query the
+registry on every run. A target the audit could not run is `environmental`.
 
 `data-validation` writes no file in this mode — read its session output directly. Parse the
 fixed header block it emits:
