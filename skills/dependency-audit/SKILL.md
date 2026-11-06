@@ -338,10 +338,10 @@ mkdir -p "$SBOM_DIR"
 
 # Lockfile: keep only that target's result, so nested out-of-scope results are dropped
 jq --arg t "<Target>" '.Results |= map(select(.Target == $t))' \
-  "$OUT/<n>.json" > "$OUT/<n>.<slug>.json"
+  "$OUT/<n>.json" > "$OUT/<k>-<slug>.json"
 docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
-  convert --format <cyclonedx|spdx-json> "/out/<n>.<slug>.json" \
-  > "$SBOM_DIR/[target].YYYYMMDD.<slug>.<cdx|spdx>.json" 2> "$OUT/<n>.<slug>.sbom.err"
+  convert --format <cyclonedx|spdx-json> "/out/<k>-<slug>.json" \
+  > "$SBOM_DIR/[target].YYYYMMDD.<k>-<slug>.<cdx|spdx>.json" 2> "$OUT/<k>-<slug>.sbom.err"
 
 # Image: convert its whole result (OS and language packages together)
 docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
@@ -349,8 +349,12 @@ docker run --rm --network none -v "$OUT:/out:ro" "$TRIVY_IMAGE" \
   > "$SBOM_DIR/[target].YYYYMMDD.image-<n>.<cdx|spdx>.json" 2> "$OUT/image-<n>.sbom.err"
 ```
 
-With the local binary, run `trivy convert` with the same flags directly. `<slug>` is the
-target path with `/` replaced by `-` (`apps/web/pnpm-lock.yaml` → `apps-web-pnpm-lock.yaml`).
+With the local binary, run `trivy convert` with the same flags directly. `<n>` is the scan
+root's result (Step 3); `<k>` is the lockfile's position in the Step 1 enumeration, counted from
+1; `<slug>` is the target path with `/` replaced by `-` (`apps/web/pnpm-lock.yaml` →
+`apps-web-pnpm-lock.yaml`). The slug is for reading only — it is not unique
+(`apps/web/package-lock.json` and `apps-web/package-lock.json` share one), and `<n>` is shared
+by every lockfile in a scan root, so `<k>` is what keeps each target's files apart.
 
 - A non-zero exit, a `FATAL` line, or empty output means the SBOM was **not generated** for
   that target: delete the partial file and quote the line. The audit's own results do not
@@ -449,8 +453,8 @@ request the report has no SBOM section at all.
 
 | Target | SBOM | Packages | Not in it / reason |
 |--------|------|---------:|--------------------|
-| `pnpm-lock.yaml` (repo root) | `[target].YYYYMMDD.pnpm-lock.yaml.cdx.json` | 812 | dev dependencies excluded |
-| `services/api/requirements.txt` | `[target].YYYYMMDD.services-api-requirements.txt.cdx.json` | 14 | transitive dependencies not visible |
+| `pnpm-lock.yaml` (repo root) | `[target].YYYYMMDD.1-pnpm-lock.yaml.cdx.json` | 812 | dev dependencies excluded |
+| `services/api/requirements.txt` | `[target].YYYYMMDD.2-services-api-requirements.txt.cdx.json` | 14 | transitive dependencies not visible |
 | `ghcr.io/acme/api:1.4@sha256:…` | not generated | — | not run — vulnerability DB unavailable |
 | `apps/legacy/yarn.lock` | not generated | — | incomplete — `Walk error file_path="…"` |
 ````
