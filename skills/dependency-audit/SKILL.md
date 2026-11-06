@@ -93,28 +93,36 @@ is `pyproject.toml` beside a `requirements.txt` — the two may list different d
 
 ### 1.2 The workspace root lockfile
 
-Walk up from the path to the repository root (never above it), starting with the path's parent.
-This runs even when the path has a lockfile of its own. A lockfile in an ancestor **owns** a
-directory only when all of these hold:
+Walk up to the repository root (never above it), starting with the parent, from **each** of:
+the path itself — even when it has a lockfile of its own — and every directory under it holding
+a manifest with no lockfile of its own ecosystem beside it (1.1). A lockfile in an ancestor
+**owns** a directory only when all of these hold:
 
 1. The ancestor holds workspace metadata, and the metadata, the lockfile and the directory's
    manifest are of one ecosystem:
 
-   | Workspace metadata | Members listed in | Lockfile |
-   |--------------------|-------------------|----------|
+   | Workspace metadata | Members | Lockfile |
+   |--------------------|---------|----------|
    | `pnpm-workspace.yaml` | `packages` | `pnpm-lock.yaml` |
    | `"workspaces"` in `package.json` | the array, or `workspaces.packages` | `package-lock.json`, `yarn.lock`, `bun.lock` |
-   | `[workspace]` in `Cargo.toml` | `members` (minus `exclude`) | `Cargo.lock` |
+   | `[workspace]` in `Cargo.toml` | `members` (minus `exclude`), plus every `path` dependency of a member that lies under the workspace root — Cargo adds those implicitly, recursively | `Cargo.lock` |
    | `[tool.uv.workspace]` in `pyproject.toml` | `members` (minus `exclude`) | `uv.lock` |
    | `go.work` | `use` | — (each `go.mod` is its own target) |
 
-2. The directory, relative to the ancestor, matches a member glob and no exclusion
-   (`!pattern` in `packages` / `workspaces`, or `exclude`). `tools/cli` is not a member of
-   `packages: [apps/*]`, so a root `pnpm-lock.yaml` does not own it.
+2. The directory, relative to the ancestor, is a member as that column defines it and matches
+   no exclusion (`!pattern` in `packages` / `workspaces`, or `exclude`). `tools/cli` is not a
+   member of `packages: [apps/*]`, so a root `pnpm-lock.yaml` does not own it.
+3. The workspace shares one lockfile. pnpm does not when `shared-workspace-lockfile=false` is
+   in the workspace root's `.npmrc` or `sharedWorkspaceLockfile: false` is in
+   `pnpm-workspace.yaml`: then the root `pnpm-lock.yaml` owns the root package only, and each
+   member needs its own. A setting outside the repository (user or global `.npmrc`) is not
+   visible — list it under "Not visible to this audit".
 
-If the metadata cannot be read or a glob cannot be decided, the lockfile does not own the
-directory — never assume membership. When a lockfile owns the path, add it to the scope and
-record the expansion:
+If the metadata cannot be read or membership cannot be decided, the lockfile does not own the
+directory — never assume membership. Every owning lockfile found this way is added to the
+scope, so a manifest is never dropped from Coverage without its lockfile being scanned —
+auditing `apps/` adds the root `pnpm-lock.yaml` that owns `apps/web`, although it does not own
+`apps/` itself. Record each expansion:
 
 > Scope expanded: `pnpm-lock.yaml` at the repository root owns `apps/web` — scanned the whole
 > workspace lockfile; findings are not filtered to `apps/web`'s members.
@@ -187,7 +195,7 @@ CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/trivy"
 mkdir -p "$CACHE"            # create it as the user, before docker creates it as root
 OUT="$(mktemp -d)"
 
-# Lockfiles — one scan per scan root: the path, plus the workspace root if Step 1.2 expanded it.
+# Lockfiles — one scan per scan root: the path, plus each workspace root Step 1.2 added.
 # Scan the directory, not single files: Trivy reads the manifests beside each lockfile
 # (package.json for yarn/npm dev classification, composer.json, go.sum for old go.mod).
 docker run --rm \
