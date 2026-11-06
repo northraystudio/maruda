@@ -63,7 +63,7 @@ Generate a **single self-contained HTML file** with:
 ### 2.2 Layout
 
 #### Header (shared)
-- Project name (derived from target names)
+- Every target found in the summaries ("Targets: a, b, …"; "Target: a" when there is one)
 - Date range of available data, across all three sources
 - Last updated timestamp
 
@@ -75,6 +75,15 @@ first.
 
 Draw a tab's charts the first time it is shown, not on page load: Chart.js measures a hidden
 canvas as zero-width.
+
+#### Target picker (Quality and SAST)
+Trends and deltas never mix targets. When a tab's summaries cover more than one `target`, show
+a labelled native `<select>` above its cards and draw everything on that tab — cards, charts,
+Latest Findings — from the selected target's summaries only, starting with the target of the
+newest summary. Changing the target destroys the tab's charts before redrawing them. With a
+single target, show no picker; the tab looks exactly as it does without one. Target names are
+used as written: never merge similar names (`backend` and `apps/backend` are two targets). The
+Dependency Audit tab needs no picker — its series already keeps targets apart (2.3).
 
 #### Quality tab (`software-evaluation`)
 - **Summary cards** — Overall Quality (delta from previous), P0 Blockers (red if > 0), Security Score
@@ -177,6 +186,7 @@ Before finalizing, verify:
 - [ ] Each tab renders its charts when opened, with the embedded data
 - [ ] The Dependency Audit trend runs across the split without a break, and every date without counts is a labelled gap, not 0
 - [ ] Tabs work with the keyboard (arrows, Home, End) and show focus
+- [ ] With several targets, the Quality and SAST tabs show one target at a time through a labelled picker, and every delta compares within that target
 - [ ] The HTML is self-contained (no local file dependencies)
 - [ ] No summary string is inserted as HTML
 - [ ] Responsive layout works at 1200px and 768px widths
