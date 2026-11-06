@@ -66,7 +66,12 @@ Exclusions — always the same, always recorded in the coverage table:
 - symbolic links are not followed
 
 A dependency manifest with no lockfile (`package.json` alone, `pyproject.toml` without a lock)
-is recorded as "not run — no lockfile; versions are not resolved". Do not generate one.
+is a target of kind `manifest`, recorded as "not run — no lockfile; versions are not resolved".
+Do not generate one. A manifest is covered — and gets no row of its own — when a lockfile sits in
+the same directory, or when a workspace root lockfile owns it: an ancestor directory (up to the
+repository root) holding the workspace metadata listed in 1.2 together with its lockfile, e.g.
+`apps/web/package.json` under a root `pnpm-workspace.yaml` + `pnpm-lock.yaml`. This holds
+whether that lockfile was found by 1.2 or lies inside the path itself.
 
 ### 1.2 The workspace root lockfile
 
@@ -284,9 +289,11 @@ Save as `docs/dependency-audit/[target].YYYYMMDD.md` (`[target]` as in `vulnerab
 the date is the local date of the run — timestamps from Trivy stay in UTC and say so).
 
 Counting rules, used by both the report and the JSON:
-- **Targets** are lockfiles and named images. Status is `complete` when every target was
-  scanned, `partial` when some were incomplete or not run, `not run` when none were scanned or
-  incomplete. `coverage.notRun` counts both incomplete and not-run targets.
+- **Targets** are lockfiles, named images, and manifests no lockfile covers (Step 1.1). Status
+  is `complete` when every target was scanned, `partial` when some were incomplete or not run,
+  `not run` when none were scanned or incomplete. `coverage.notRun` counts both incomplete and
+  not-run targets. An uncovered manifest is always not run, so a run that has one is never
+  `complete`; a run with nothing but uncovered manifests is `not run` (`notRunReason: other`).
 - Image candidates (a `Dockerfile` with no image named) and exclusion rows are **not** targets:
   they never make a run partial. `coverage.excluded` counts exclusion rows.
 - **Location** is `file:line` when Trivy reports a line (`Locations[].StartLine`), else the file.
@@ -310,6 +317,7 @@ Counting rules, used by both the report and the JSON:
 |--------|------|--------|---------------|------|---------:|
 | `pnpm-lock.yaml` (repo root) | lockfile | scanned | scope expanded from `apps/web`; whole workspace | trivy 0.76.1 + pnpm audit 10.x | 812 |
 | `services/api/requirements.txt` | lockfile | scanned | direct dependencies only — transitive not visible | trivy 0.76.1 | 14 |
+| `tools/cli/package.json` | manifest | not run | no lockfile; versions are not resolved | — | — |
 | `services/api/Dockerfile` | image candidate | not scanned | no image named | — | — |
 | `ghcr.io/acme/api:1.4@sha256:…` (linux/amd64) | image, runtime | not run | vulnerability DB unavailable: <error> | trivy 0.76.1 | — |
 | `**/node_modules`, `**/vendor` | — | excluded | lockfile is the source of truth | — | — |
@@ -380,7 +388,7 @@ Save alongside: `docs/dependency-audit/[target].YYYYMMDD.json`.
 
 ## Step 7: Quality gate
 
-- [ ] Every lockfile in scope, every named image, and every exclusion has a Coverage row
+- [ ] Every lockfile in scope, every manifest no lockfile covers, every named image, and every exclusion has a Coverage row
 - [ ] Every "not run" or "incomplete" row quotes why; no failed or partial analysis is counted as a clean scan
 - [ ] Scanner version, how it ran (container / local), and DB `UpdatedAt` are in the header
 - [ ] A workspace scope expansion, if any, is stated
