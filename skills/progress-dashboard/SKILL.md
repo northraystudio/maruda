@@ -111,7 +111,10 @@ target, each label names its target):
 2. Otherwise, the `dependencies` field of that target and date's `vulnerability-scan` summary, so the history
    from before the split stays on the chart. Those summaries have no `unknown` severity: leave
    it empty, not 0. A scan without `dependencies` (its audit was partial or did not run) has no
-   counts, labelled "(unavailable)".
+   counts, labelled "(unavailable)". So does a scan whose `dependencies` has a `status` other
+   than `complete` (some older summaries recorded a failed audit that way, next to zero counts):
+   read the field when it is present, never infer a failure from free-text notes, and keep the
+   counts of summaries that have no `status`.
 
 A date without counts is a **labelled gap** — the bar is empty and the axis label says why. Never
 draw it as 0, never leave it unlabelled, and never fall back to an older audit's counts for the

@@ -542,14 +542,17 @@ const SKIPPED_FILES = [];
         };
       }
       const scan = scans.find(d => keyOf(d) === key);
-      const deps = scan.dependencies;
+      // Some older summaries mark a failed audit with `dependencies.status` but still
+      // carry zero counts: anything other than `complete` is a gap, not a clean run.
+      const failed = scan.dependencies && scan.dependencies.status !== undefined && scan.dependencies.status !== 'complete';
+      const deps = failed ? null : scan.dependencies;
       return {
         date,
         target,
         label: prefix + formatDate(date) + (deps ? '' : ' (unavailable)'),
         source: 'vulnerability-scan',
         status: deps ? 'complete' : 'unavailable',
-        reason: null,
+        reason: failed ? String(scan.dependencies.status) : null,
         // the older summaries carry no `unknown` severity: leave it empty, not 0
         counts: deps ? { critical: deps.critical, high: deps.high, medium: deps.medium, low: deps.low, unknown: null } : null,
         remediation: null,
