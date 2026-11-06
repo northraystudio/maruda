@@ -730,39 +730,47 @@ const SKIPPED_FILES = [];
     deps: function () {
       const series = buildDependencySeries(AUDITS, SCANS);
       const latest = last(series);
-      const withCounts = series.filter(p => p.counts);
-      const lastCounted = last(withCounts);
-      const prevCounted = latest && latest.counts ? prevOf(withCounts) : lastCounted;
+      const before = prevOf(series);
+      const lastCounted = last(series.filter(p => p.counts));
+      // Status, upgrades and scanner come from the newest audit itself: a later
+      // back-filled scan must not hide an audit that did not run.
+      const audit = last(AUDITS);
+      const auditPoint = audit ? series.find(p => p.date === audit.date) : null;
+      // A delta only compares adjacent points that both have full counts.
+      const comparable = p => p && p.counts && p.status === 'complete';
 
       addCard('deps-cards', {
         label: 'Dependency Vulnerabilities',
         value: latest && latest.counts ? totalOf(latest) : '—',
-        delta: latest && latest.counts && prevCounted ? deltaText(totalOf(latest), totalOf(prevCounted), true) : null,
+        delta: comparable(latest) && comparable(before) ? deltaText(totalOf(latest), totalOf(before), true) : null,
         color: '#f59e0b',
-        note: latest && !latest.counts && lastCounted
-          ? `Latest audit has no counts. Last counted: ${formatDate(lastCounted.date)} (${totalOf(lastCounted)})`
-          : (latest && latest.status === 'partial' ? 'Partial — scanned targets only' : null)
+        note: !latest ? null
+          : !latest.counts
+            ? (lastCounted ? `No counts on ${formatDate(latest.date)}. Last counted: ${formatDate(lastCounted.date)} (${totalOf(lastCounted)})` : `No counts on ${formatDate(latest.date)}`)
+            : [formatDate(latest.date), 'source: ' + latest.source,
+               latest.status === 'partial' ? 'partial — scanned targets only' : null,
+               before && !comparable(before) ? 'no delta: previous point has no full counts' : null].filter(Boolean).join(' · ')
       });
       addCard('deps-cards', {
         label: 'Latest Audit Status',
-        value: latest ? latest.status : '—',
-        color: latest && latest.status === 'complete' ? '#22c55e' : '#f97316',
-        note: latest
-          ? [formatDate(latest.date), latest.reason, latest.coverage ? `${latest.coverage.scanned} scanned / ${latest.coverage.notRun} not run` : null, `source: ${latest.source}`].filter(Boolean).join(' · ')
-          : null
+        value: auditPoint ? auditPoint.status : 'no audit yet',
+        color: auditPoint && auditPoint.status === 'complete' ? '#22c55e' : '#f97316',
+        note: auditPoint
+          ? [formatDate(auditPoint.date), auditPoint.reason, auditPoint.coverage ? `${auditPoint.coverage.scanned} scanned / ${auditPoint.coverage.notRun} not run` : null].filter(Boolean).join(' · ')
+          : 'Only back-filled vulnerability-scan counts are available'
       });
       addCard('deps-cards', {
         label: 'Upgrades P0 / P1',
-        value: latest && latest.remediation ? `${latest.remediation.p0} / ${latest.remediation.p1}` : '—',
-        color: latest && latest.remediation && latest.remediation.p0 > 0 ? '#ef4444' : '#94a3b8'
+        value: auditPoint && auditPoint.remediation ? `${auditPoint.remediation.p0} / ${auditPoint.remediation.p1}` : '—',
+        color: auditPoint && auditPoint.remediation && auditPoint.remediation.p0 > 0 ? '#ef4444' : '#94a3b8',
+        note: auditPoint ? formatDate(auditPoint.date) : null
       });
-      const scannerPoint = last(series.filter(p => p.scanner));
       addCard('deps-cards', {
         label: 'Scanner',
-        value: scannerPoint && scannerPoint.scanner.version ? `${scannerPoint.scanner.name} ${scannerPoint.scanner.version}` : '—',
+        value: auditPoint && auditPoint.scanner && auditPoint.scanner.version ? `${auditPoint.scanner.name} ${auditPoint.scanner.version}` : '—',
         color: '#06b6d4',
-        note: scannerPoint
-          ? [scannerPoint.scanner.pinned ? 'pinned' : 'not pinned', 'DB ' + (scannerPoint.scanner.dbUpdatedAt ? scannerPoint.scanner.dbUpdatedAt.slice(0, 10) : 'unavailable')].join(' · ')
+        note: auditPoint && auditPoint.scanner
+          ? [auditPoint.scanner.pinned ? 'pinned' : 'not pinned', 'DB ' + (auditPoint.scanner.dbUpdatedAt ? auditPoint.scanner.dbUpdatedAt.slice(0, 10) : 'unavailable')].join(' · ')
           : null
       });
 

@@ -115,6 +115,14 @@ A date without counts is a **labelled gap** — the bar is empty and the axis la
 draw it as 0, never leave it unlabelled, and never fall back to an older audit's counts for the
 latest card (say "Last counted: <date>" instead): any of those reads as a clean audit.
 
+The cards follow the same rule:
+- **Latest Audit Status**, Upgrades and Scanner come from the newest `dependency-audit` summary
+  itself, not from the merged series — a later back-filled scan must not hide an audit that did
+  not run.
+- A **delta** compares a point with the one immediately before it, and only when both have counts
+  and neither is partial. Across a gap or a coverage change, show no delta: a drop there may be
+  missing coverage, not an improvement.
+
 ### 2.4 Styling Requirements
 
 - Dark theme (background: `#0f172a`, cards: `#1e293b`, text: `#e2e8f0`)
@@ -140,7 +148,7 @@ const DEPENDENCY_DATA = [ /* dependency-audit JSONs */ ];
 const SKIPPED_FILES = [ /* file names skipped for an unknown type */ ];
 ```
 
-Summaries are data, not markup. Embed them as JSON with `<` written as `<`, so a string
+Summaries are data, not markup. Embed them as JSON with every `<` written as `\u003c`, so a string
 containing `</script>` cannot end the script block, and put every string from them into the
 page with `textContent` — never `innerHTML`.
 
